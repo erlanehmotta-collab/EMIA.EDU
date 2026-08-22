@@ -1,0 +1,6 @@
+{
+  "name": "EMIA.EDUTECH",
+  "description": "Aplicativo para geração de conteúdo acadêmico com IA, formatação ABNT, verificação de originalidade e exportação para PDF/Word.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
