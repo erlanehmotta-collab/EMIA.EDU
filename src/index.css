@@ -1,2 +1,27 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+
+@layer base {
+  @media (prefers-color-scheme: dark) {
+    body {
+      color: #f1f5f9;
+      background-color: #0f172a;
+    }
+  }
+}
+
+/* Garante contraste perfeito e nítido para todas as letras */
+.dark, [data-theme="dark"] {
+  color: #f8fafc !important;
+}
+
+.dark input, .dark textarea, .dark select {
+  color: #f8fafc !important;
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.dark label, .dark h1, .dark h2, .dark h3, .dark h4, .dark p, .dark span {
+  color: inherit;
+}
+

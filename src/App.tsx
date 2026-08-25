@@ -188,6 +188,7 @@ export default function App() {
       localStorage.setItem("emia_authenticated", "true");
       localStorage.setItem("emia_is_master", "false");
       localStorage.setItem("emia_user_email", cleanEmail);
+      setShowPixModal(true);
       logAction(`Login de Aluno (${cleanEmail}) realizado`);
       return;
     }
@@ -1070,27 +1071,6 @@ export default function App() {
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Verificação e Exportação</h3>
-
-            <Button onClick={handleCheckAuthenticity} disabled={isLoading || !generatedText} variant="outline" className="w-full justify-start">
-              {isLoading && activeTab === 'report' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2 text-purple-600" />}
-              Checar plágio ou IA
-            </Button>
-            
-            <div className="pt-4 mt-2 border-t border-gray-100 grid grid-cols-3 gap-2">
-              <Button onClick={handleCopy} disabled={!generatedText} variant="secondary" className="w-full text-xs">
-                <Copy className="w-3 h-3 mr-1" /> Copiar
-              </Button>
-              <Button onClick={exportPDF} disabled={!generatedText} variant="secondary" className="w-full text-xs">
-                <Download className="w-3 h-3 mr-1" /> PDF
-              </Button>
-              <Button onClick={exportWord} disabled={!generatedText} variant="secondary" className="w-full text-xs">
-                <FileDown className="w-3 h-3 mr-1" /> Word
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Editor Area */}
@@ -1238,6 +1218,39 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* PAINEL DE VERIFICAÇÃO E EXPORTAÇÃO (EMBAIXO DO TEXTO PRINCIPAL) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-600" />
+                Validação:
+              </span>
+              <Button 
+                onClick={handleCheckAuthenticity} 
+                disabled={isLoading || !generatedText} 
+                variant="outline" 
+                size="sm"
+                className="text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50"
+              >
+                {isLoading && activeTab === 'report' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-purple-600" />}
+                Checar Plágio / IA
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs text-gray-700">
+                <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Texto
+              </Button>
+              <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PDF
+              </Button>
+              <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                <FileDown className="w-3.5 h-3.5 mr-1.5" /> Baixar Word (.docx)
+              </Button>
+            </div>
+          </div>
+
         </div>
 
       </main>
