@@ -3,6 +3,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
+import mammoth from "mammoth";
+import pdfParse from "pdf-parse";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const upload = multer({ storage: multer.memoryStorage() });
@@ -15,29 +17,35 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Helper to call Gemini
-  async function generateFromText(prompt: string, maxRetries = 3) {
+  async function generateFromText(prompt: string, maxRetries = 5, isDocument = true) {
     const personaDirective = `\n\nDIRETRIZ DE IDENTIDADE E PAPEL:\n- Atue como um redator e editor acadêmico e científico.\n- Crie textos de alta qualidade mantendo um tom formal e rigoroso.\n- Analise textos para detectar a presença de plágio e verificar se foram gerados ou não por inteligência artificial quando solicitado.\n- Se necessário e apropriado para o contexto, gere tabelas e imagens para enriquecer o conteúdo e a compreensão do texto.\n- Permita e processe o texto inserido ou enviado pelo usuário para verificação de plágio e opções de humanização de forma precisa.`;
-    const strictConstraint = personaDirective + "\n\nIMPORTANTE: Não inclua frases introdutórias, cabeçalhos ou rodapés no resultado. Retorne apenas o conteúdo gerado. NÃO utilize formatação Markdown (remova asteriscos **, hashtags #, etc). Entregue o resultado em texto limpo, como se tivesse sido escrito por um humano em um editor de texto comum. Garanta que o documento gerado mantenha uma formatação e layout impecáveis, idênticos aos de um arquivo criado no Microsoft Word, sem quebras de página ou problemas de renderização.\n\nDIRETRIZ PERMANENTE: Nunca invente informações. Todas as informações utilizadas para criar textos devem ser buscadas e verificadas em fontes seguras e confiáveis. Para consultas baseadas em documentos específicos, como a constituição ou um texto base enviado, limite a geração de respostas estritamente às informações contidas no documento fornecido ou referenciado, sem extrapolações.\n\nDIRETRIZ DE CONHECIMENTO FATUAL: Baseie suas respostas em fatos e conhecimento factual, consultando fontes externas confiáveis ou conhecimento atualizado, sem gerar suposições.";
-    const finalPrompt = prompt + strictConstraint;
+    const strictConstraint = "\n\nIMPORTANTE: Não inclua frases introdutórias, cabeçalhos ou rodapés no resultado. Retorne apenas o conteúdo gerado. NÃO utilize formatação Markdown (remova asteriscos **, hashtags #, etc). Entregue o resultado em texto limpo, como se tivesse sido escrito por um humano em um editor de texto comum. Garanta que o documento gerado mantenha uma formatação e layout impecáveis, idênticos aos de um arquivo criado no Microsoft Word, sem inserção textual de marcações de 'quebra de página' visíveis na impressão final.\n\nDIRETRIZ PERMANENTE: Nunca invente informações. Todas as informações utilizadas para criar textos devem ser buscadas e verificadas em fontes seguras e confiáveis. Para consultas baseadas em documentos específicos, como a constituição ou um texto base enviado, limite a geração de respostas estritamente às informações contidas no documento fornecido ou referenciado, sem extrapolações.\n\nDIRETRIZ DE CONHECIMENTO FATUAL: Baseie suas respostas em fatos e conhecimento factual, consultando fontes externas confiáveis ou conhecimento atualizado, sem gerar suposições.";
+    const chatConstraint = "\n\nIMPORTANTE: Responda diretamente e de forma clara, utilizando formatação em Markdown (como negrito, listas e blocos de código) para facilitar a leitura. Seja prestativo e ajude a esclarecer dúvidas ou refinar o texto.";
+    
+    const finalPrompt = prompt + personaDirective + (isDocument ? strictConstraint : chatConstraint);
 
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-3.5-flash",
           contents: finalPrompt,
         });
         return response.text;
       } catch (error: any) {
-        const isRateLimit = error?.status === 429 || error?.status === 'RESOURCE_EXHAUSTED' || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
-        if (isRateLimit) {
+        const status = error?.status || error?.error?.code || error?.error?.status;
+        const msg = error?.message || '';
+        
+        const isRateLimit = status === 429 || status === 'RESOURCE_EXHAUSTED' || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED');
+        const isOverloaded = status === 503 || status === 'UNAVAILABLE' || msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
+        
+        if (isRateLimit || isOverloaded) {
           attempt++;
           if (attempt >= maxRetries) {
-            throw new Error("Limite de requisições excedido na API (429). Por favor, tente novamente mais tarde ou verifique os limites de cota.");
+            throw new Error("Aguarde e tente novamente, erro no sistema.");
           }
-          // The API asks to wait ~22s, so we wait 25s, then 50s
-          const delay = attempt * 25000;
-          console.warn(`[API Gemini] Limite de requisições 429 atingido. Tentativa ${attempt} falhou. Aguardando ${delay/1000}s antes de tentar novamente...`);
+          const delay = isOverloaded ? 5000 * attempt : 10000 * attempt;
+          console.warn(`[API Gemini] Erro temporário (${isOverloaded ? '503 Overloaded' : '429 Rate Limit'}). Tentativa ${attempt} falhou. Aguardando ${delay/1000}s...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
           throw error;
@@ -46,17 +54,31 @@ async function startServer() {
     }
   }
 
-  app.post("/api/generate", upload.single("file"), async (req, res) => {
+  app.post("/api/generate", upload.array("files"), async (req, res) => {
     try {
       const { 
         title, subtitle, documentType, prompt,
-        studentName, institution, city, year, advisor 
+        studentName, course, institution, city, year, advisor 
       } = req.body;
-      const file = req.file;
+      const files = req.files as Express.Multer.File[];
       
       let context = "";
-      if (file) {
-        context = file.buffer.toString('utf-8');
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            if (file.originalname.toLowerCase().endsWith(".pdf") || file.mimetype === "application/pdf") {
+              const pdfData = await pdfParse(file.buffer);
+              context += `\n--- Arquivo: ${file.originalname} ---\n${pdfData.text}\n`;
+            } else if (file.originalname.toLowerCase().endsWith(".docx") || file.mimetype.includes("wordprocessingml")) {
+              const result = await mammoth.extractRawText({ buffer: file.buffer });
+              context += `\n--- Arquivo: ${file.originalname} ---\n${result.value}\n`;
+            } else {
+              context += `\n--- Arquivo: ${file.originalname} ---\n${file.buffer.toString('utf-8')}\n`;
+            }
+          } catch (e) {
+            console.error("Erro ao ler arquivo:", e);
+          }
+        }
       }
 
       const typeMap: Record<string, string> = {
@@ -75,11 +97,17 @@ async function startServer() {
       const selectedType = typeMap[documentType] || documentType || "artigo acadêmico";
       const subtitleText = subtitle ? ` - Subtítulo: ${subtitle}` : "";
 
-      const hasWorkData = studentName || institution || city || year || advisor;
+      const hasWorkData = studentName || course || institution || city || year || advisor;
       const coverInstruction = hasWorkData ? `
-      IMPORTANTE: Como os dados do trabalho foram fornecidos, INICIE o documento gerando a Capa e a Folha de Rosto estritamente nas normas ABNT antes de começar o texto.
+      IMPORTANTE: Como os dados do trabalho foram fornecidos, INICIE o documento estruturando a Capa e a Folha de Rosto estritamente nas normas ABNT.
+      Simule o espaçamento e a hierarquia visual usando quebras de linha e CAIXA ALTA onde necessário.
+      - Capa: NOME DA INSTITUIÇÃO no topo (caixa alta), NOME DO CURSO (se houver, abaixo da instituição), NOME DO AUTOR em seguida (caixa alta), TÍTULO no meio da página (caixa alta e destaque), CIDADE e ANO na parte inferior.
+      - Folha de Rosto: NOME DO AUTOR no topo, TÍTULO no meio, Nota de apresentação (ex: "Trabalho apresentado...") simulando recuo com o Curso (${course}) e Orientador (${advisor}), CIDADE e ANO na parte inferior.
+      - Adicione o marcador explícito "--- [QUEBRA DE PÁGINA] ---" entre a capa, a folha de rosto e o início do texto.
+
       Utilize as informações:
       - Instituição: ${institution || "Não informado"}
+      - Curso: ${course || "Não informado"}
       - Autor/Aluno: ${studentName || "Não informado"}
       - Título: ${title || "Não informado"}
       - Orientador: ${advisor || "Não informado"}
@@ -90,23 +118,92 @@ async function startServer() {
       const instruction = `Crie um(a) ${selectedType} detalhado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
       
       DIRETRIZES OBRIGATÓRIAS (HUMANIZAÇÃO E ABNT):
-      1. Garanta a exclusividade de cada texto gerado, assegurando que, mesmo para temas semelhantes, o conteúdo final seja sempre original e diferente.
-      2. Evite a geração ou replicação de conteúdos que infrinjam direitos de propriedade intelectual de terceiros. Garanta que todo o texto seja uma produção original e síntese nova.
-      3. Escreva de forma absolutamente original e humanizada, garantindo que o texto seja indetectável por verificadores de plágio e ferramentas de IA.
-      4. Evite jargões comuns de IA e estruture as frases com fluidez e variação natural.
-      5. O texto INTEIRO já deve ser gerado seguindo RIGOROSAMENTE as normas da ABNT (estrutura, títulos, referências).
-      6. Caso haja necessidade, gere também tabelas e imagens apropriadas para enriquecer o conteúdo e a compreensão do texto.
+      1. ALTA BURSTINESS E PERPLEXIDADE: Intercale frases curtas e diretas com períodos mais longos e complexos. Use um vocabulário rico, orgânico e menos previsível para quebrar os padrões matemáticos de detecção de IA.
+      2. ZERO CLICHÊS DE IA: É ESTRITAMENTE PROIBIDO usar transições artificiais como "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Desde os primórdios", "Além disso". Faça conexões lógicas e diretas.
+      3. RITMO HUMANO: O texto DEVE ser indetectável por ferramentas como GPTZero ou Turnitin. Simule o ritmo cognitivo humano, com argumentação progressiva, fluxo natural e pausas retóricas.
+      4. ORIGINALIDADE: Todo o conteúdo deve ser 100% autoral, garantindo zero plágio em verificadores.
+         6. Caso haja necessidade, gere também tabelas e imagens apropriadas para enriquecer o conteúdo.
 
       ${coverInstruction}
       Instruções adicionais detalhadas: ${prompt || "Siga a estrutura padrão acadêmica apropriada (ex: Introdução, Desenvolvimento, Conclusão, Referências)."}
       
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
-      const generatedText = await generateFromText(instruction);
+      // PASSO 1: Geração Bruta
+      let generatedText = await generateFromText(instruction);
+
+      // PASSO 2a: Filtro Determinístico de Varredura (Remoção de rastros e clichês)
+      let deterministicFiltered = generatedText
+        .replace(/^```[a-z]*\n?/gm, "")
+        .replace(/```$/gm, "")
+        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*|Como um assistente.*|Entendido.*)$/gim, "")
+        .replace(/\b(Contudo,)\b/gi, "No entanto,")
+        .replace(/\b(Diante disso,)\b/gi, "Assim,")
+        .replace(/\b(No panorama atual,)\b/gi, "Atualmente,")
+        .replace(/\b(Vale ressaltar que)\b/gi, "Nota-se que")
+        .replace(/\b(É importante notar que)\b/gi, "Observa-se que")
+        .replace(/\b(Podemos concluir que)\b/gi, "Dessa forma,")
+        .replace(/\b(Em suma,)\b/gi, "Em síntese,")
+        .replace(/\b(Desde os primórdios,)\b/gi, "Historicamente,")
+        .trim();
+
+      // PASSO 2b: Filtro Estocástico de Humanização (Anti-IA)
+      const humanizeInstruction = `Você é a camada de sanitização final estocástica. Sua tarefa é reescrever o texto a seguir para destruir 100% da assinatura de IA (perplexidade artificial e cadência previsível), garantindo aprovação em detectores como Turnitin/GPTZero, mas mantendo o rigor acadêmico intacto.
+
+Diretrizes Estritas de Pós-Processamento:
+1. Eliminar Cadência Monótona: Quebre a estrutura matemática de parágrafos. Intercale parágrafos curtos (2-3 linhas) com densos (5-6 linhas) simulando a respiração e o fluxo cognitivo humano.
+2. Variação Sintática (Burstiness): Force a variação de ritmo usando orações diretas e incisivas contrastando com períodos longos. 
+3. Vocabulário Orgânico (Alta Perplexidade): Fuja do rebuscamento óbvio da IA. Substitua palavras estatisticamente previsíveis por escolhas precisas do jargão acadêmico, sem exageros.
+4. Remoção Definitiva de Clichês e Transições Artificiais: Zere o uso de "Além disso", "Neste contexto", "Sendo assim" em inícios de parágrafos sequenciais.
+5. PRESERVAÇÃO ESTRUTURAL ABNT: Preserve rigorosamente qualquer marcação de "--- [QUEBRA DE PÁGINA] ---", CAIXA ALTA (como Capa e Sumário). Aplique a humanização apenas no texto discursivo.
+6. ZERO METADADOS: Retorne EXCLUSIVAMENTE o documento final, sem cabeçalhos, sem saudações e sem comentários.
+
+Texto bruto para sanitização estocástica:
+\n${deterministicFiltered}`;
+      
+      generatedText = await generateFromText(humanizeInstruction);
+      
+      // Varredura final de segurança
+      generatedText = generatedText
+        .replace(/^```[a-z]*\n?/gm, "")
+        .replace(/```$/gm, "")
+        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*)$/gim, "")
+        .trim();
+
       res.json({ success: true, text: generatedText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao gerar conteúdo" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao gerar conteúdo" });
+    }
+  });
+
+  app.post("/api/extract", upload.array("files"), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      
+      let context = "";
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            if (file.originalname.toLowerCase().endsWith(".pdf") || file.mimetype === "application/pdf") {
+              const pdfData = await pdfParse(file.buffer);
+              context += `\n\n--- Início do Arquivo: ${file.originalname} ---\n\n${pdfData.text}\n`;
+            } else if (file.originalname.toLowerCase().endsWith(".docx") || file.mimetype.includes("wordprocessingml")) {
+              const result = await mammoth.extractRawText({ buffer: file.buffer });
+              context += `\n\n--- Início do Arquivo: ${file.originalname} ---\n\n${result.value}\n`;
+            } else {
+              context += `\n\n--- Início do Arquivo: ${file.originalname} ---\n\n${file.buffer.toString('utf-8')}\n`;
+            }
+          } catch (e) {
+            console.error("Erro ao ler arquivo para extração:", e);
+          }
+        }
+      }
+      
+      res.json({ success: true, text: context.trim() });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao extrair textos" });
     }
   });
 
@@ -128,19 +225,61 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
       res.json({ success: true, text: formattedText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao formatar" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao formatar" });
+    }
+  });
+
+  app.post("/api/generate-reference", async (req, res) => {
+    try {
+      const { source, style } = req.body;
+      const formatStyle = style === 'APA' ? 'apa' : 'associacao-brasileira-de-normas-tecnicas';
+      
+      let doiMatch = source.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+      
+      if (doiMatch) {
+        const doi = doiMatch[0];
+        const url = `https://doi.org/${doi}`;
+        const response = await fetch(url, {
+            headers: { "Accept": `text/x-bibliography; style=${formatStyle}` },
+            redirect: 'follow'
+        });
+        
+        if (response.ok) {
+            const data = await response.text();
+            return res.json({ success: true, text: data.trim() });
+        }
+      }
+      
+      // Fallback para IA se não for DOI ou falhar
+      const instruction = `Gere a referência bibliográfica no formato ${style} para a seguinte fonte (livro, site, artigo ou link):\n${source}\nRetorne APENAS a referência formatada, de forma limpa, sem asteriscos ou formatações Markdown.`;
+      const formattedReference = await generateFromText(instruction);
+      res.json({ success: true, text: formattedReference });
+      
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao gerar referência" });
     }
   });
 
   app.post("/api/humanize", async (req, res) => {
     try {
       const { text } = req.body;
-      const instruction = `Reescreva o seguinte texto acadêmico para que soe mais natural e humano, removendo clichês comuns de inteligência artificial (como "em suma", "é importante notar", etc.), variando a estrutura das frases e melhorando a fluidez, mas mantendo o rigor acadêmico e as informações originais.\n\nTexto:\n${text}`;
+      const instruction = `Atue como um escritor e editor humano de excelência. Sua tarefa é reescrever o texto a seguir de forma que contorne 100% dos detectores de IA (Turnitin, GPTZero, etc), mantendo o significado original e o rigor.
+
+Aplique as seguintes técnicas rigorosamente:
+1. Alta Burstiness (Variação de Ritmo): Intercale frases curtas, impactantes e diretas com frases mais longas. O ritmo não pode ser monótono ou matemático.
+2. Alta Perplexidade (Vocabulário Orgânico): Evite as palavras e estruturas estatisticamente prováveis. Use vocabulário preciso e fuja do rebuscamento artificial.
+3. Estrutura de Parágrafos Irregular: Parágrafos humanos variam de tamanho. Crie parágrafos de 2 linhas e outros de 5 ou 6 linhas.
+4. Remoção de Marcadores de IA: É estritamente PROIBIDO usar transições robóticas como: "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Além disso", "Por outro lado", "Neste contexto", "Crucial", "Desde os primórdios".
+5. Voz Ativa e Direta: Vá direto ao ponto sem enrolação, eliminando a voz passiva excessiva.
+6. Zero Formatação Extra: Não inclua introduções. Apenas devolva o texto reescrito.
+
+Texto original:\n${text}`;
       const humanizedText = await generateFromText(instruction);
       res.json({ success: true, text: humanizedText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao humanizar" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao humanizar" });
     }
   });
 
@@ -179,11 +318,11 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
       prompt += `\n\n[HISTÓRICO DA CONVERSA]\n${history.map((h:any) => `${h.role === 'user' ? 'Aluno' : 'Assistente'}: ${h.text}`).join('\n')}\n[/HISTÓRICO]`;
       prompt += `\n\nAluno: ${message}\nAssistente:`;
 
-      const responseText = await generateFromText(prompt);
+      const responseText = await generateFromText(prompt, 5, false);
       res.json({ success: true, text: responseText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao gerar resposta" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao gerar resposta" });
     }
   });
 
@@ -209,7 +348,7 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
       res.json({ success: true, text: coverText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao gerar capa" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao gerar capa" });
     }
   });
 
@@ -231,7 +370,7 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
       res.json({ success: true, text: paginatedText });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, error: "Falha ao paginar" });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao paginar" });
     }
   });
 
@@ -239,7 +378,19 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
     try {
       const { text, rules } = req.body;
       const extra = rules ? `\n\nInstruções extras do usuário: ${rules}` : "";
-      const instruction = `Revise e aprimore o conteúdo a seguir para melhorar a gramática e a clareza, mantendo a mesma estrutura original.${extra}\n\nTexto original:\n${text}`;
+      
+      const instruction = `Atue como um escritor e editor humano de excelência. Sua tarefa é reescrever o texto a seguir de forma que contorne 100% dos detectores de IA (Turnitin, GPTZero, etc), mantendo o significado original e o rigor.${extra}
+
+Aplique as seguintes técnicas rigorosamente:
+1. Alta Burstiness (Variação de Ritmo): Intercale frases curtas, impactantes e diretas com frases mais longas. O ritmo não pode ser monótono ou matemático.
+2. Alta Perplexidade (Vocabulário Orgânico): Evite as palavras e estruturas estatisticamente prováveis. Use vocabulário preciso e fuja do rebuscamento artificial.
+3. Estrutura de Parágrafos Irregular: Parágrafos humanos variam de tamanho. Crie parágrafos de 2 linhas e outros de 5 ou 6 linhas.
+4. Remoção de Marcadores de IA: É estritamente PROIBIDO usar transições robóticas como: "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Além disso", "Por outro lado", "Neste contexto", "Crucial", "Desde os primórdios".
+5. Voz Ativa e Direta: Vá direto ao ponto sem enrolação, eliminando a voz passiva excessiva.
+6. Zero Formatação Extra: Não inclua introduções. Apenas devolva o texto reescrito.
+7. PRESERVAÇÃO ESTRUTURAL ABNT: Se o texto original contiver uma Capa, Folha de Rosto, Sumário ou marcações como "--- [QUEBRA DE PÁGINA] ---", você DEVE mantê-los exatamente como estão, com as mesmas informações (caixa alta, alinhamentos simulados). Aplique a humanização e variação de ritmo APENAS no corpo textual (introdução, desenvolvimento, etc).
+
+Texto original:\n${text}`;
       
       const improvedText = await generateFromText(instruction);
       res.json({ success: true, text: improvedText });

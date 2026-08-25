@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "./components/ui/button";
 import { 
-  FileText, Upload, CheckCircle, FileDown, 
-  Settings, Loader2, LogOut, ShieldCheck, Download,
+  FileText, Upload, Plus, CheckCircle, FileDown, 
+  Settings, Loader2, LogOut, ShieldCheck, Download, Copy,
   UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
   User, Clock, Save, X
-} from "lucide-react";
+, ListOrdered, Link} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import jsPDF from "jspdf";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip } from "docx";
 import { saveAs } from "file-saver";
 import { useDropzone } from "react-dropzone";
 
@@ -33,11 +33,12 @@ export default function App() {
   const [documentType, setDocumentType] = useState("artigo");
   const [customDocumentType, setCustomDocumentType] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   
   // Dados do Trabalho (ABNT)
   const [showWorkData, setShowWorkData] = useState(false);
   const [studentName, setStudentName] = useState("");
+  const [course, setCourse] = useState("");
   const [institution, setInstitution] = useState("");
   const [city, setCity] = useState("");
   const [year, setYear] = useState("");
@@ -47,6 +48,12 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileTab, setProfileTab] = useState<"dados" | "historico">("dados");
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  // Reference State
+  const [showReferenceModal, setShowReferenceModal] = useState(false);
+  const [referenceSource, setReferenceSource] = useState("");
+  const [referenceStyle, setReferenceStyle] = useState<"ABNT" | "APA">("ABNT");
+  const [generatedReference, setGeneratedReference] = useState("");
 
   const [generatedText, setGeneratedText] = useState("");
   const [authenticityReport, setAuthenticityReport] = useState("");
@@ -60,6 +67,29 @@ export default function App() {
   const [isChatting, setIsChatting] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      setProgress(0);
+      setErrorMessage(""); // clear errors when starting a new task
+      interval = setInterval(() => {
+        setProgress(p => {
+          if (p < 85) return p + (Math.random() * 8); 
+          if (p < 95) return p + (Math.random() * 0.5); 
+          return p;
+        });
+      }, 500);
+    } else {
+      setProgress(100);
+      const to = setTimeout(() => setProgress(0), 1000); 
+      return () => clearTimeout(to);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
   const [activeTab, setActiveTab] = useState<"generator" | "editor" | "report" | "chat">("generator");
 
   const logAction = (actionDesc: string, content?: string) => {
@@ -111,7 +141,7 @@ export default function App() {
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
+      setFiles(prev => [...prev, ...acceptedFiles]);
     }
   };
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
@@ -146,30 +176,62 @@ export default function App() {
       
       // Send work data if any exists
       if (studentName) formData.append("studentName", studentName);
+      if (course) formData.append("course", course);
       if (institution) formData.append("institution", institution);
       if (city) formData.append("city", city);
       if (year) formData.append("year", year);
       if (advisor) formData.append("advisor", advisor);
 
-      if (file) {
-        formData.append("file", file);
+      if (files.length > 0) {
+        files.forEach(f => formData.append("files", f));
       }
 
       const res = await fetch("/api/generate", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setGeneratedText(data.text);
         setActiveTab("editor");
         logAction(`Geração de documento: ${title || documentType}`, data.text);
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao gerar conteúdo.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao gerar conteúdo.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMergeFiles = async () => {
+    if (files.length === 0) {
+      setErrorMessage("Por favor, adicione documentos na Base de Conhecimento para mesclar.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
+
+      const res = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+      if (data.success) {
+        setGeneratedText(prev => prev ? prev + "\n\n" + data.text : data.text);
+        setErrorMessage(""); // clear error
+        setActiveTab("editor");
+        logAction("Junção e extração de documentos", "Múltiplos arquivos mesclados diretamente.");
+      } else {
+        setErrorMessage(data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao extrair e juntar textos.");
     } finally {
       setIsLoading(false);
     }
@@ -177,26 +239,54 @@ export default function App() {
 
   const handleFormatABNT = async () => {
     if (!generatedText) {
-      alert("Por favor, gere ou cole um texto no editor primeiro para formatar.");
+      setErrorMessage("Por favor, gere ou cole um texto no editor primeiro para formatar.");
       return;
     }
     setIsLoading(true);
     try {
-      const res = await fetch("/api/format-abnt", {
+      // Motor ABNT Determinístico (Sem custo de IA)
+      // Simula um tempo de processamento para feedback visual
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Regras fixas de estruturação (Limpeza de espaços duplos, garantia de parágrafos, etc)
+      let formattedText = generatedText
+        .replace(/\r\n/g, '\n') // Normaliza quebras de linha
+        .replace(/\n{3,}/g, '\n\n') // Remove espaços verticais excessivos
+        .replace(/^[ \t]+/gm, '') // Remove espaços no início das linhas
+        .trim();
+        
+      // O visualizador (textarea) e a função exportWord já cuidam das margens, espaçamento 1.5 e recuo.
+      
+      setGeneratedText(formattedText);
+      setErrorMessage("Texto mapeado pelo Motor ABNT! Exporte em Word para visualizar as margens (3cm/2cm), fontes e paginação oficiais (custo zero de IA).");
+      logAction("Formatação ABNT (Motor Determinístico) aplicada", formattedText);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao formatar.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleHumanize = async () => {
+    if (!generatedText) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/humanize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: generatedText, rules: formatRules }),
+        body: JSON.stringify({ text: generatedText }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setGeneratedText(data.text);
-        logAction("Formatação ABNT aplicada", data.text);
+        logAction("Texto Humanizado", data.text);
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao formatar.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao humanizar texto.");
     } finally {
       setIsLoading(false);
     }
@@ -211,17 +301,17 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: generatedText }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setAuthenticityReport(data.report);
         setActiveTab("report");
         logAction("Verificação de plágio/IA realizada");
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao verificar autenticidade.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao verificar autenticidade.");
     } finally {
       setIsLoading(false);
     }
@@ -235,15 +325,15 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: generatedText, title: title }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setGeneratedText(data.text + "\n\n--- [NOVA PÁGINA] ---\n\n" + generatedText);
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao gerar capa.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao gerar capa.");
     } finally {
       setIsLoading(false);
     }
@@ -258,15 +348,69 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: generatedText }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setGeneratedText(data.text);
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao paginar.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao paginar.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGenerateTOC = () => {
+    if (!generatedText) return;
+    
+    const lines = generatedText.split('\n');
+    const tocLines: string[] = [];
+    
+    lines.forEach(line => {
+      let cleanLine = line.trim();
+      const isMarkdown = /^#+\s+/.test(cleanLine);
+      const isNumbered = /^\d+(?:\.\d+)*\.?\s+[A-ZÀ-Ú]/.test(cleanLine);
+      
+      if (isMarkdown || isNumbered) {
+          cleanLine = cleanLine.replace(/^#+\s*/, '');
+          tocLines.push(cleanLine);
+      }
+    });
+
+    if (tocLines.length > 0) {
+      const tocString = "SUMÁRIO\n\n" + tocLines.join('\n') + "\n\n--- [NOVA PÁGINA] ---\n\n";
+      setGeneratedText(tocString + generatedText);
+      logAction("Sumário gerado", "Sumário automático adicionado ao início do documento.");
+    } else {
+      setErrorMessage("Nenhum título estruturado (ex: '1. Introdução' ou '# Título') encontrado para gerar o sumário.");
+    }
+  };
+
+  const handleGenerateReference = async () => {
+    if (!referenceSource) {
+      setErrorMessage("Por favor, insira um link ou DOI.");
+      return;
+    }
+    setIsLoading(true);
+    setGeneratedReference("");
+    try {
+      const res = await fetch("/api/generate-reference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: referenceSource, style: referenceStyle }),
+      });
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+      if (data.success) {
+        setGeneratedReference(data.text);
+        logAction("Referência gerada", data.text);
+      } else {
+        setErrorMessage(data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao gerar referência.");
     } finally {
       setIsLoading(false);
     }
@@ -296,7 +440,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: targetText, rules: formatRules }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         if (isSelection) {
           const newFullText = generatedText.substring(0, start) + data.text + generatedText.substring(end);
@@ -305,11 +449,11 @@ export default function App() {
           setGeneratedText(data.text);
         }
       } else {
-        alert("Erro: " + data.error);
+        setErrorMessage(data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao aprimorar texto.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao aprimorar texto.");
     } finally {
       setIsLoading(false);
     }
@@ -338,22 +482,22 @@ export default function App() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ csvData: content }),
           });
-          const data = await res.json();
+          const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
           if (data.success) {
             setGeneratedText(prev => prev + "\n\n" + data.text + "\n\n");
           } else {
-            alert("Erro: " + data.error);
+            setErrorMessage(data.error);
           }
         } catch (error) {
           console.error(error);
-          alert("Erro ao processar tabela.");
+          setErrorMessage(error instanceof Error ? error.message : "Erro ao processar tabela.");
         } finally {
           setIsLoading(false);
         }
       };
       reader.readAsText(file);
     } else {
-       alert("Formato não suportado. Envie imagens (JPG/PNG) ou tabelas (CSV).");
+       setErrorMessage("Formato não suportado. Envie imagens (JPG/PNG) ou tabelas (CSV).");
     }
     
     if (attachmentRef.current) attachmentRef.current.value = "";
@@ -380,37 +524,52 @@ export default function App() {
           context: generatedText // Send current document as context
         }),
       });
-      const data = await res.json();
+      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
         setChatHistory([...updatedHistory, { role: 'assistant', text: data.text }]);
       } else {
-        alert("Erro ao gerar resposta automática: " + data.error);
+        setErrorMessage("Erro ao gerar resposta automática: " + data.error);
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao enviar mensagem.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao enviar mensagem.");
     } finally {
       setIsChatting(false);
     }
   };
 
+  const handleCopy = () => {
+    if (!generatedText) return;
+    navigator.clipboard.writeText(generatedText);
+    alert("Texto copiado para a área de transferência!");
+  };
+
   const exportPDF = () => {
     if (!generatedText) return;
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'a4' });
     
     doc.setFont("times", "normal");
     doc.setFontSize(12);
     
-    const lines = doc.splitTextToSize(generatedText, 170);
+    const paragraphs = generatedText.split('\n');
     let cursorY = 20;
     
-    lines.forEach((line: string) => {
-      if (cursorY > 280) {
+    paragraphs.forEach((paragraph) => {
+      if (paragraph.includes("--- [QUEBRA DE PÁGINA] ---") || paragraph.includes("--- [NOVA PÁGINA] ---") || paragraph.match(/---\s*\[Página.*?\]\s*---/i)) {
         doc.addPage();
         cursorY = 20;
+        return;
       }
-      doc.text(line, 20, cursorY);
-      cursorY += 7;
+      
+      const lines = doc.splitTextToSize(paragraph, 170);
+      lines.forEach((line: string) => {
+        if (cursorY > 280) {
+          doc.addPage();
+          cursorY = 20;
+        }
+        doc.text(line, 20, cursorY);
+        cursorY += 7;
+      });
     });
 
     doc.save("trabalho-abnt.pdf");
@@ -418,19 +577,68 @@ export default function App() {
 
   const exportWord = async () => {
     if (!generatedText) return;
-    const paragraphs = generatedText.split('\n').map(text => new Paragraph({
-        children: [new TextRun(text)],
-    }));
+    const paragraphs = generatedText.split('\n').map(text => {
+        // Ignora linhas vazias desnecessárias se estiver apenas dividindo, mas ABNT preserva espaços às vezes.
+        // Se a linha for o marcador de quebra, gerar quebra de página
+        if (text.includes("--- [QUEBRA DE PÁGINA] ---") || text.includes("--- [NOVA PÁGINA] ---") || text.match(/---\s*\[Página.*?\]\s*---/i)) {
+            return new Paragraph({
+                pageBreakBefore: true,
+                children: [],
+            });
+        }
+        
+        // Formatação exata ABNT
+        return new Paragraph({
+            children: [new TextRun({ text: text, font: "Arial", size: 24 })], // size 24 = 12pt
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { line: 360 }, // 1.5 spacing
+            indent: { firstLine: convertMillimetersToTwip(12.5) } // 1.25cm recuo primeira linha
+        });
+    });
 
     const doc = new Document({
       sections: [{
-        properties: {},
+        properties: {
+            page: {
+                margin: {
+                    top: convertMillimetersToTwip(30), // 3cm
+                    left: convertMillimetersToTwip(30), // 3cm
+                    right: convertMillimetersToTwip(20), // 2cm
+                    bottom: convertMillimetersToTwip(20), // 2cm
+                }
+            }
+        },
         children: paragraphs,
       }],
     });
 
     const blob = await Packer.toBlob(doc);
     saveAs(blob, "trabalho-abnt.docx");
+  };
+
+  const handleNewWork = () => {
+    setTitle("");
+    setSubtitle("");
+    setDocumentType("artigo");
+    setCustomDocumentType("");
+    setPrompt("");
+    setFiles([]);
+    setGeneratedText("");
+    setAuthenticityReport("");
+    setFormatRules("");
+    setChatHistory([]);
+    setActiveTab("generator");
+    logAction('Iniciou um novo trabalho (limpeza de formulário)');
+  };
+
+  const handleClearWorkData = () => {
+    setStudentName("");
+    setCourse("");
+    setInstitution("");
+    setCity("");
+    setYear("");
+    setAdvisor("");
+    logAction('Dados do Trabalho limpos');
   };
 
   const handleSaveProfile = () => {
@@ -466,7 +674,12 @@ export default function App() {
         {/* Sidebar Controls */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Novo Trabalho</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Novo Trabalho</h2>
+              <Button onClick={handleNewWork} variant="outline" size="sm" className="text-xs h-7">
+                <Plus className="w-3 h-3 mr-1" /> Novo
+              </Button>
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -557,6 +770,16 @@ export default function App() {
                       />
                     </div>
                     <div>
+                      <label className="block font-medium text-gray-700 mb-1">Curso</label>
+                      <input 
+                        type="text" 
+                        value={course}
+                        onChange={(e) => setCourse(e.target.value)}
+                        placeholder="Ex: Administração"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
                       <label className="block font-medium text-gray-700 mb-1">Instituição de Ensino</label>
                       <input 
                         type="text" 
@@ -598,35 +821,68 @@ export default function App() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
+                    <div className="flex gap-2 pt-2 border-t border-gray-200 mt-2">
+                      <Button 
+                        size="sm" 
+                        onClick={handleClearWorkData} 
+                        variant="outline" 
+                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      >
+                        Limpar Dados
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          handleSaveProfile();
+                          setShowWorkData(false);
+                        }} 
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      >
+                        Salvar Dados
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
 
               <div>
-                <Button 
-                  onClick={handleImproveText} 
-                  disabled={isLoading || !generatedText} 
-                  className="w-full bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center gap-2"
-                >
-                  {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                  Aprimorar Texto com IA
-                </Button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base de Conhecimento (Texto base)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Arquivos Base (Para basear IA ou Juntar trabalhos)</label>
                 <div 
                   {...getRootProps()} 
                   className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
                 >
                   <input {...getInputProps()} />
                   <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                  {file ? (
-                    <p className="text-sm font-medium text-blue-600 truncate">{file.name}</p>
-                  ) : (
-                    <p className="text-sm text-gray-500">Arraste um PDF/Word ou clique</p>
-                  )}
+                  <p className="text-sm text-gray-500">Arraste múltiplos PDFs ou Words, ou clique para selecionar</p>
                 </div>
+                
+                {files.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {files.map((f, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded px-3 py-2">
+                        <span className="text-sm font-medium text-blue-700 truncate max-w-[200px]">{f.name}</span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFiles(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <Button 
+                      onClick={handleMergeFiles} 
+                      disabled={isLoading} 
+                      className="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 text-sm mt-2"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+                      Apenas Juntar Textos (Sem IA)
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -649,14 +905,34 @@ export default function App() {
                 />
               </div>
 
-              <Button 
-                onClick={handleGenerate} 
-                disabled={isLoading || (!title && !file)} 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4 py-3 font-semibold"
-              >
-                {isLoading && activeTab === 'generator' ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Settings className="w-5 h-5 mr-2" />}
-                Gerar Texto com IA
-              </Button>
+              <div className="pt-2">
+                <Button 
+                  onClick={handleGenerate} 
+                  disabled={isLoading || (!title && files.length === 0)} 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 font-semibold mb-3"
+                >
+                  {isLoading && activeTab === 'generator' ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Settings className="w-5 h-5 mr-2" />}
+                  Gerar Texto com IA
+                </Button>
+
+                <Button 
+                  onClick={handleImproveText} 
+                  disabled={isLoading || !generatedText} 
+                  className="w-full bg-pink-600 hover:bg-pink-700 text-white py-3 font-semibold mb-3"
+                >
+                  {isLoading && activeTab === 'editor' ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Wand2 className="w-5 h-5 mr-2" />}
+                  Aprimorar Texto com IA
+                </Button>
+
+                <Button 
+                  onClick={handleFormatABNT} 
+                  disabled={isLoading || !generatedText} 
+                  className="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 font-semibold"
+                >
+                  {isLoading && activeTab === 'editor' ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle className="w-5 h-5 mr-2" />}
+                  Adequar à ABNT
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -668,7 +944,10 @@ export default function App() {
               Checar plágio ou IA
             </Button>
             
-            <div className="pt-4 mt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
+            <div className="pt-4 mt-2 border-t border-gray-100 grid grid-cols-3 gap-2">
+              <Button onClick={handleCopy} disabled={!generatedText} variant="secondary" className="w-full text-xs">
+                <Copy className="w-3 h-3 mr-1" /> Copiar
+              </Button>
               <Button onClick={exportPDF} disabled={!generatedText} variant="secondary" className="w-full text-xs">
                 <Download className="w-3 h-3 mr-1" /> PDF
               </Button>
@@ -703,7 +982,31 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col relative">
+            
+            {/* Progress Bar & Error Messages */}
+            <div className="absolute top-0 left-0 right-0 z-20">
+              {isLoading && (
+                <div className="w-full bg-blue-100 h-1.5 overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-full transition-all duration-300 ease-out" 
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              )}
+              {errorMessage && (
+                <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-4 py-3 flex items-start gap-3 shadow-sm">
+                  <span className="mt-0.5">⚠️</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{errorMessage}</p>
+                    <button onClick={() => setErrorMessage("")} className="text-xs text-amber-600 hover:text-amber-900 underline mt-1">
+                      Dispensar aviso
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {(activeTab === "editor" || activeTab === "generator") && (
               <div className="flex flex-col h-full relative">
                 <textarea 
@@ -716,24 +1019,21 @@ export default function App() {
                 
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gray-50 border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
-                    <input 
-                      type="text" 
-                      value={formatRules}
-                      onChange={(e) => setFormatRules(e.target.value)}
-                      placeholder="Instruções extra de formatação (opcional)..."
-                      className="w-64 flex-shrink-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    />
-                    <Button size="sm" onClick={handleFormatABNT} disabled={isLoading || !generatedText} className="flex-shrink-0 bg-gray-800 hover:bg-gray-900 text-white">
-                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                      Adequar à ABNT
-                    </Button>
-                    <Button size="sm" onClick={handleCheckAuthenticity} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
-                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-purple-600" /> : <ShieldCheck className="w-4 h-4 mr-2 text-purple-600" />}
-                      Verificar plágio e IA
+                    <Button size="sm" onClick={handleHumanize} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
+                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-orange-600" /> : <UserCheck className="w-4 h-4 mr-2 text-orange-600" />}
+                      Humanizar texto
                     </Button>
                     <Button size="sm" onClick={handleGenerateCover} disabled={isLoading} variant="outline" className="flex-shrink-0">
                       {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" /> : <BookOpen className="w-4 h-4 mr-2 text-blue-600" />}
                       Gerar Capa
+                    </Button>
+                    <Button size="sm" onClick={handleGenerateTOC} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
+                      <ListOrdered className="w-4 h-4 mr-2 text-indigo-600" />
+                      Sumário Dinâmico
+                    </Button>
+                    <Button size="sm" onClick={() => setShowReferenceModal(true)} variant="outline" className="flex-shrink-0 border-dashed border-gray-300">
+                      <Link className="w-4 h-4 mr-2 text-gray-500" />
+                      Referências (DOI/Link)
                     </Button>
                     <Button size="sm" onClick={handlePaginate} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
                       {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-emerald-600" /> : <Hash className="w-4 h-4 mr-2 text-emerald-600" />}
@@ -933,6 +1233,78 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {showReferenceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">Gerar Referência</h2>
+              <button onClick={() => setShowReferenceModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Formato da Referência</label>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setReferenceStyle("ABNT")}
+                    className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-colors ${referenceStyle === "ABNT" ? "bg-blue-50 border-blue-600 text-blue-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    ABNT
+                  </button>
+                  <button
+                    onClick={() => setReferenceStyle("APA")}
+                    className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-colors ${referenceStyle === "APA" ? "bg-blue-50 border-blue-600 text-blue-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    APA
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Link, DOI ou Dados do Livro/Artigo</label>
+                <input 
+                  type="text" 
+                  value={referenceSource}
+                  onChange={(e) => setReferenceSource(e.target.value)}
+                  placeholder="Ex: 10.1038/nrg3270 ou https://..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <Button 
+                onClick={handleGenerateReference} 
+                disabled={isLoading || !referenceSource}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Link className="w-5 h-5 mr-2" />}
+                Gerar Referência
+              </Button>
+
+              {generatedReference && (
+                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-800 font-serif mb-3 select-all">{generatedReference}</p>
+                  <Button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedReference);
+                      setErrorMessage("Referência copiada para a área de transferência!");
+                      setTimeout(() => setErrorMessage(""), 3000);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Copy className="w-4 h-4 mr-2" /> Copiar Referência
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
