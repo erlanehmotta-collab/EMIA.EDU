@@ -1,22 +1,17 @@
-async function testRef() {
-  const doi = "10.1038/nrg3270";
-  const url = `https://doi.org/${doi}`;
-  
-  try {
-    const response = await fetch(url, {
-        headers: {
-            "Accept": "text/x-bibliography; style=associacao-brasileira-de-normas-tecnicas"
-        },
-        redirect: 'follow'
-    });
-    
-    if (response.ok) {
-        const data = await response.text();
-        console.log("ABNT:", data.trim());
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
+import fs from "fs";
 
-testRef();
+if (!fs.existsSync('public')) {
+  fs.mkdirSync('public', { recursive: true });
+}
+fs.writeFileSync('public/_redirects', '/* /index.html 200\n');
+
+const wranglerConfig = {
+  name: 'emia-edutech',
+  compatibility_date: '2026-08-25',
+  pages_build_output_dir: 'dist',
+  compatibility_flags: [
+    'nodejs_compat'
+  ]
+};
+fs.writeFileSync('wrangler.jsonc', JSON.stringify(wranglerConfig, null, 2));
+console.log('CF Pages setup complete!');

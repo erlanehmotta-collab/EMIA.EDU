@@ -4,8 +4,8 @@ import {
   FileText, Upload, Plus, CheckCircle, FileDown, 
   Settings, Loader2, LogOut, ShieldCheck, Download, Copy,
   UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
-  User, Clock, Save, X
-, ListOrdered, Link} from "lucide-react";
+  User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip } from "docx";
@@ -28,6 +28,14 @@ type AuditLog = {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [credits, setCredits] = useState<number>(() => {
+    const saved = localStorage.getItem("emia_credits");
+    return saved !== null ? parseInt(saved, 10) : 5;
+  });
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
+  const [activationCode, setActivationCode] = useState("");
+  const [activationSuccess, setActivationSuccess] = useState(false);
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [documentType, setDocumentType] = useState("artigo");
@@ -148,24 +156,51 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <div className="text-center mb-8">
-            <div className="bg-blue-600 text-white w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-6 h-6" />
+            <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+              <FileText className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">EMIA.EDUTECH</h1>
-            <p className="text-gray-500 mt-2">Gere, formate e avalie seus trabalhos acadêmicos com Inteligência Artificial.</p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
+            <p className="text-gray-600 mt-2 text-sm">
+              Gerador, formatador ABNT e validador de trabalhos acadêmicos com Inteligência Artificial Humanizada.
+            </p>
           </div>
-          <Button className="w-full" onClick={() => setIsAuthenticated(true)}>
-            Entrar (Demonstração)
+
+          <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-blue-900 uppercase tracking-wider">Acesso por Trabalho</span>
+              <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">PIX Direto</span>
+            </div>
+            <p className="text-xs text-blue-800 leading-relaxed">
+              Adquira pacotes de <strong>5 trabalhos acadêmicos completos</strong> com normas ABNT, sumário automático e humanização anti-plágio.
+            </p>
+          </div>
+
+          <Button 
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 rounded-xl shadow-md shadow-blue-500/20"
+            onClick={() => setIsAuthenticated(true)}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Acessar Painel ({credits > 0 ? `${credits} trabalhos disponíveis` : "Adquirir Pacote"})
           </Button>
+
+          <p className="text-center text-xs text-gray-400 mt-4">
+            Chave PIX Oficial: <span className="font-mono text-gray-600 font-semibold">erlanehmotta@gmail.com</span>
+          </p>
         </div>
       </div>
     );
   }
 
   const handleGenerate = async () => {
+    if (credits <= 0) {
+      setShowPixModal(true);
+      setErrorMessage("Seus créditos acabaram! Adquira o pacote de 5 trabalhos via PIX direto para continuar.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const formData = new FormData();
@@ -195,6 +230,11 @@ export default function App() {
         setGeneratedText(data.text);
         setActiveTab("editor");
         logAction(`Geração de documento: ${title || documentType}`, data.text);
+        setCredits(prev => {
+          const next = Math.max(0, prev - 1);
+          localStorage.setItem("emia_credits", String(next));
+          return next;
+        });
       } else {
         setErrorMessage(data.error);
       }
@@ -658,6 +698,15 @@ export default function App() {
           <span className="font-semibold text-gray-900 text-lg">EMIA.EDUTECH</span>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowPixModal(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 text-amber-900 border border-amber-300/60 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm"
+          >
+            <Coins className="w-4 h-4 text-amber-600 animate-pulse" />
+            <span>{credits} {credits === 1 ? 'Trabalho Restante' : 'Trabalhos Restantes'}</span>
+            <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">+ Recarregar (PIX)</span>
+          </button>
+
           <Button variant="outline" size="sm" onClick={() => setShowProfileModal(true)} className="border-gray-200">
             <User className="w-4 h-4 mr-2" />
             Perfil e Histórico
@@ -1300,6 +1349,137 @@ export default function App() {
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PAGAMENTO PIX DIRETO - PACOTE 5 TRABALHOS */}
+      {showPixModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative">
+              <button 
+                onClick={() => setShowPixModal(false)} 
+                className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/10 hover:bg-black/20 p-1.5 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-white/20 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                  PIX Direto
+                </span>
+                <span className="bg-emerald-400 text-slate-900 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                  Liberação Rápida
+                </span>
+              </div>
+              <h2 className="text-xl font-bold">Pacote com 5 Trabalhos</h2>
+              <p className="text-blue-100 text-xs mt-1">
+                Gere e formate até 5 artigos, TCCs ou monografias nas normas ABNT com IA Humanizada.
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              
+              {/* Benefícios Inclusos */}
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1.5 text-xs text-gray-700">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>5 Créditos de Trabalhos Acadêmicos Completos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>Normas ABNT (Capa, Folha de Rosto e Sumário)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>Texto Anti-Plágio & Exportação para Word (.docx) e PDF</span>
+                </div>
+              </div>
+
+              {/* Caixa da Chave PIX */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Chave PIX Oficial (E-mail):
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-gray-100 border border-gray-200 px-3 py-2.5 rounded-xl font-mono text-sm text-gray-800 select-all font-semibold break-all">
+                    erlanehmotta@gmail.com
+                  </div>
+                  <Button
+                    onClick={() => {
+                      navigator.clipboard.writeText("erlanehmotta@gmail.com");
+                      setPixCopied(true);
+                      setTimeout(() => setPixCopied(false), 3000);
+                    }}
+                    className={`font-semibold text-xs px-4 py-2.5 rounded-xl transition-all ${
+                      pixCopied 
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
+                    }`}
+                  >
+                    {pixCopied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" /> Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1" /> Copiar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="text-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <p className="text-xs font-semibold text-gray-600 mb-2">Ou aponte a câmera do seu banco:</p>
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=erlanehmotta@gmail.com" 
+                  alt="QR Code PIX erlanehmotta@gmail.com" 
+                  className="w-36 h-36 mx-auto rounded-lg shadow-sm border border-gray-200 bg-white p-1"
+                />
+                <p className="text-[11px] text-gray-500 mt-2 font-mono">Chave: erlanehmotta@gmail.com</p>
+              </div>
+
+              {/* Botão WhatsApp para Enviar Comprovante */}
+              <a
+                href="https://wa.me/?text=Ol%C3%A1!%20Acabei%20de%20realizar%20o%20pagamento%20via%20PIX%20para%20o%20pacote%20de%205%20trabalhos%20do%20EMIA.EDUTECH%20na%20chave%20erlanehmotta@gmail.com.%20Segue%20o%20comprovante!"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors shadow-sm"
+              >
+                <span>📱 Enviar Comprovante no WhatsApp</span>
+              </a>
+
+              {/* Botão de Ativação / Confirmação */}
+              <div className="pt-2 border-t border-gray-100">
+                {activationSuccess ? (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded-xl text-center font-semibold animate-in fade-in">
+                    🎉 Parabéns! 5 Créditos Adicionados com Sucesso!
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setCredits(prev => {
+                        const next = prev + 5;
+                        localStorage.setItem("emia_credits", String(next));
+                        return next;
+                      });
+                      setActivationSuccess(true);
+                      setTimeout(() => {
+                        setActivationSuccess(false);
+                        setShowPixModal(false);
+                      }, 1800);
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 rounded-xl text-xs shadow-md shadow-blue-500/20"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Confirmar PIX e Ativar +5 Trabalhos
+                  </Button>
+                )}
+              </div>
+
             </div>
           </div>
         </div>
