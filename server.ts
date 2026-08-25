@@ -28,7 +28,7 @@ async function startServer() {
     while (attempt < maxRetries) {
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-3.6-flash",
           contents: finalPrompt,
         });
         return response.text;
