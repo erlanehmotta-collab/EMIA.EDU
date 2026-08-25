@@ -27,8 +27,19 @@ type AuditLog = {
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem("emia_authenticated") === "true";
+  });
+  const [isMaster, setIsMaster] = useState<boolean>(() => {
+    return localStorage.getItem("emia_is_master") === "true";
+  });
+  const [loginEmail, setLoginEmail] = useState("erlane.digital@gmail.com");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   const [credits, setCredits] = useState<number>(() => {
+    const isM = localStorage.getItem("emia_is_master") === "true";
+    if (isM) return 9999;
     const saved = localStorage.getItem("emia_credits");
     return saved !== null ? parseInt(saved, 10) : 5;
   });
@@ -154,41 +165,109 @@ export default function App() {
   };
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
+  const handleLogin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = loginEmail.trim().toLowerCase();
+    const cleanPass = loginPassword.trim();
+
+    if (cleanEmail === "erlane.digital@gmail.com" && cleanPass === "Emia@2026") {
+      setIsMaster(true);
+      setIsAuthenticated(true);
+      setCredits(9999);
+      localStorage.setItem("emia_authenticated", "true");
+      localStorage.setItem("emia_is_master", "true");
+      localStorage.setItem("emia_credits", "9999");
+      localStorage.setItem("emia_user_email", cleanEmail);
+      logAction("Login Mestre Administrativo realizado com sucesso");
+      return;
+    }
+
+    if (cleanEmail && cleanPass) {
+      setIsMaster(false);
+      setIsAuthenticated(true);
+      localStorage.setItem("emia_authenticated", "true");
+      localStorage.setItem("emia_is_master", "false");
+      localStorage.setItem("emia_user_email", cleanEmail);
+      logAction(`Login de Aluno (${cleanEmail}) realizado`);
+      return;
+    }
+
+    setLoginError("Informe seu e-mail e senha para acessar.");
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsMaster(false);
+    localStorage.removeItem("emia_authenticated");
+    localStorage.removeItem("emia_is_master");
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
               <FileText className="w-7 h-7" />
             </div>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
-            <p className="text-gray-600 mt-2 text-sm">
-              Gerador, formatador ABNT e validador de trabalhos acadêmicos com Inteligência Artificial Humanizada.
+            <p className="text-gray-600 mt-1 text-xs">
+              Gerador, formatador ABNT e validador de trabalhos acadêmicos com IA Humanizada.
             </p>
           </div>
 
-          <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-blue-900 uppercase tracking-wider">Acesso por Trabalho</span>
-              <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">PIX Direto</span>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">E-mail de Acesso</label>
+              <input 
+                type="email"
+                required
+                value={loginEmail}
+                onChange={(e) => { setLoginEmail(e.target.value); setLoginError(""); }}
+                placeholder="seu.email@exemplo.com"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+              />
             </div>
-            <p className="text-xs text-blue-800 leading-relaxed">
-              Adquira pacotes de <strong>5 trabalhos acadêmicos completos</strong> com normas ABNT, sumário automático e humanização anti-plágio.
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Senha</label>
+              <input 
+                type="password"
+                required
+                value={loginPassword}
+                onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
+                placeholder="Digite sua senha..."
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+              />
+            </div>
+
+            {loginError && (
+              <p className="text-xs text-rose-600 font-medium">{loginError}</p>
+            )}
+
+            <Button 
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-500/20 text-sm"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Entrar no Sistema
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+            <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-3 text-left mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-blue-900 uppercase">Pacote 5 Trabalhos</span>
+                <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">PIX Direto</span>
+              </div>
+              <p className="text-[11px] text-blue-800">
+                Chave PIX: <span className="font-mono font-bold">erlanehmotta@gmail.com</span>
+              </p>
+            </div>
+            <p className="text-[11px] text-gray-400">
+              Acesso Mestre Administrativo: <span className="font-mono text-gray-600 font-semibold">erlane.digital@gmail.com</span>
             </p>
           </div>
-
-          <Button 
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 rounded-xl shadow-md shadow-blue-500/20"
-            onClick={() => setIsAuthenticated(true)}
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Acessar Painel ({credits > 0 ? `${credits} trabalhos disponíveis` : "Adquirir Pacote"})
-          </Button>
-
-          <p className="text-center text-xs text-gray-400 mt-4">
-            Chave PIX Oficial: <span className="font-mono text-gray-600 font-semibold">erlanehmotta@gmail.com</span>
-          </p>
         </div>
       </div>
     );
@@ -698,20 +777,27 @@ export default function App() {
           <span className="font-semibold text-gray-900 text-lg">EMIA.EDUTECH</span>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowPixModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 text-amber-900 border border-amber-300/60 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm"
-          >
-            <Coins className="w-4 h-4 text-amber-600 animate-pulse" />
-            <span>{credits} {credits === 1 ? 'Trabalho Restante' : 'Trabalhos Restantes'}</span>
-            <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">+ Recarregar (PIX)</span>
-          </button>
+          {isMaster ? (
+            <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>👑 Acesso Mestre (Ilimitado)</span>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowPixModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 text-amber-900 border border-amber-300/60 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm"
+            >
+              <Coins className="w-4 h-4 text-amber-600 animate-pulse" />
+              <span>{credits} {credits === 1 ? 'Trabalho Restante' : 'Trabalhos Restantes'}</span>
+              <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">+ Recarregar (PIX)</span>
+            </button>
+          )}
 
           <Button variant="outline" size="sm" onClick={() => setShowProfileModal(true)} className="border-gray-200">
             <User className="w-4 h-4 mr-2" />
             Perfil e Histórico
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setIsAuthenticated(false)}>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Sair
           </Button>
