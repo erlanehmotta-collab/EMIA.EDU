@@ -1625,6 +1625,16 @@ export default function App() {
                   <option value="redacao">Redação</option>
                   <option value="outros">Outros</option>
                 </select>
+                <div className="mt-1.5 px-2.5 py-1.5 bg-blue-50/70 border border-blue-100 rounded-md text-[11px] text-blue-800 font-medium">
+                  {documentType === "resumo" && "📘 ABNT NBR 6028: Sem capa / sem folha de rosto • Parágrafo único contínuo com Palavras-chave."}
+                  {documentType === "redacao" && "✍️ Padrão ENEM Nota 1000: Sem capa • 4 parágrafos dissertativos com proposta de intervenção."}
+                  {(documentType === "artigo" || documentType === "artigo_cientifico") && "📄 ABNT NBR 6022: Sem capa avulsa • Cabeçalho de Autores e Resumo na 1ª página."}
+                  {documentType === "resenha" && "📑 Padrão ABNT: Sem capa avulsa • Cabeçalho com Referência da Obra Resenhada."}
+                  {(documentType === "monografia" || documentType === "trabalho_academico" || documentType === "relatorio" || documentType === "projeto") && "🎓 ABNT NBR 14724: Capa e Folha de Rosto Oficiais com quebra de página."}
+                  {documentType === "estudo_caso" && "📊 Estudo de Caso: Cabeçalho institucional na 1ª página com diagnóstico e soluções."}
+                  {documentType === "artigo_opiniao" && "📰 Artigo de Opinião: Título, autoria e texto argumentativo fluido."}
+                  {documentType === "outros" && "⚙️ Estrutura personalizada conforme diretrizes."}
+                </div>
                 {documentType === "outros" && (
                   <div className="mt-2">
                     <input 
@@ -1676,7 +1686,12 @@ export default function App() {
                   variant="outline" 
                   className="w-full bg-gray-50 border-gray-300 hover:bg-gray-100 flex items-center justify-between"
                 >
-                  <span className="text-sm font-medium text-gray-700">Dados do Trabalho (Capa ABNT)</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {["resumo", "redacao"].includes(documentType) && "Dados do Aluno / Metadados"}
+                    {["artigo", "artigo_cientifico"].includes(documentType) && "Autoria & Afiliação (Cabeçalho NBR 6022)"}
+                    {["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType) && "Capa & Folha de Rosto (ABNT NBR 14724)"}
+                    {!["resumo", "redacao", "artigo", "artigo_cientifico", "monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType) && "Dados do Trabalho"}
+                  </span>
                   <span className="text-gray-500 text-xs">{showWorkData ? "Ocultar" : "Preencher"}</span>
                 </Button>
                 
@@ -1954,6 +1969,7 @@ export default function App() {
             {(activeTab === "editor" || activeTab === "generator") && (
               <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
                 {(() => {
+                  const requiresFormalCover = ["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType);
                   let pages: string[] = [];
                   
                   if (generatedText && generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
@@ -1986,15 +2002,25 @@ export default function App() {
                       bodyPages.push(referencesContent);
                     }
 
-                    pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ...bodyPages];
+                    // Apenas Monografias/TCCs/Relatórios/Projetos recebem Capa e Folha de Rosto automáticas se houver dados
+                    if (requiresFormalCover && (studentName || institution || course)) {
+                      pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ...bodyPages];
+                    } else {
+                      pages = bodyPages;
+                    }
                   } else {
-                    pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ""];
+                    if (requiresFormalCover && (studentName || institution || course)) {
+                      pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ""];
+                    } else {
+                      pages = [""];
+                    }
                   }
 
                   const renderSingleA4Sheet = (text: string, pIdx: number) => {
-                    const isCover = pIdx === 0;
-                    const isTitlePage = pIdx === 1;
-                    const isBodyPage = pIdx >= 2;
+                    const hasCoverPages = pages[0] === "CAPA_AUTO" || (pages.length >= 3 && requiresFormalCover);
+                    const isCover = hasCoverPages && pIdx === 0;
+                    const isTitlePage = hasCoverPages && pIdx === 1;
+                    const isBodyPage = !hasCoverPages || pIdx >= 2;
                     const pageNum = pIdx + 1;
                     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
@@ -2006,7 +2032,7 @@ export default function App() {
                         {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO */}
                         {isBodyPage && (
                           <div className="absolute top-[4%] right-[5%] font-mono text-xs font-bold text-gray-800 select-none">
-                            {pageNum}
+                            {hasCoverPages ? pageNum : pIdx + 1}
                           </div>
                         )}
 
