@@ -1746,9 +1746,6 @@ export default function App() {
               <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-700">
                 <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
               </Button>
-              <Button onClick={() => window.print()} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-800 border-gray-300 hover:bg-gray-50 font-medium">
-                <Printer className="w-3.5 h-3.5 mr-1 text-gray-600" /> Imprimir A4
-              </Button>
               <Button 
                 onClick={() => {
                   if (!generatedText) {
