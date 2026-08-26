@@ -175,6 +175,61 @@ export default function App() {
     }
   });
 
+  // Auto-login e Captura de Token via Redirecionamento/Hash (Solução para Safari e iOS contra bloqueio de cookies)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // 1. Checa se retornou de redirecionamento OAuth com token na URL (#access_token=...)
+      if (window.location.hash && window.location.hash.includes("access_token")) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        if (accessToken) {
+          window.history.replaceState(null, "", window.location.pathname);
+          localStorage.setItem("emia_google_token", accessToken);
+          fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          })
+          .then(res => res.json())
+          .then(userInfo => {
+            if (userInfo.email) {
+              const userEmail = (userInfo.email || "").toLowerCase();
+              setGoogleUser({ name: userInfo.name, email: userEmail, picture: userInfo.picture });
+              localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
+              if (userEmail === "erlane.digital@gmail.com") {
+                setIsMaster(true);
+                setCredits(9999);
+                localStorage.setItem("emia_is_master", "true");
+              } else {
+                setIsMaster(false);
+              }
+              setIsAuthenticated(true);
+              localStorage.setItem("emia_authenticated", "true");
+              localStorage.setItem("emia_user_email", userEmail);
+              logAction(`Login Google realizado com sucesso (${userEmail})`);
+            }
+          })
+          .catch(err => console.warn("Erro ao validar token Google:", err));
+        }
+      } 
+      // 2. Checa se já havia sessão salva para login instantâneo
+      else {
+        const savedToken = localStorage.getItem("emia_google_token");
+        const savedUser = localStorage.getItem("emia_google_user");
+        const isAuth = localStorage.getItem("emia_authenticated") === "true";
+        if (isAuth && savedUser) {
+          try {
+            const userObj = JSON.parse(savedUser);
+            setGoogleUser(userObj);
+            setIsAuthenticated(true);
+            if (userObj.email?.toLowerCase() === "erlane.digital@gmail.com") {
+              setIsMaster(true);
+              setCredits(9999);
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  }, []);
+
   const getApiHeaders = () => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (customGeminiKey && customGeminiKey.trim()) {
@@ -188,62 +243,69 @@ export default function App() {
   };
 
   const handleGoogleLogin = () => {
-    // Integração oficial com Google Identity Services (GIS)
+    // 1. Tenta Popup oficial do Google Identity Services (ux_mode: popup isolado sem cookies de terceiros)
     if (typeof window !== "undefined" && (window as any).google?.accounts?.oauth2) {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: "679803159932-emia-google-app.apps.googleusercontent.com",
-        scope: "openid email profile https://www.googleapis.com/auth/generative-language",
-        callback: async (tokenResponse: any) => {
-          if (tokenResponse?.access_token) {
-            try {
-              const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-              });
-              const userInfo = await userInfoRes.json();
-              const userEmail = (userInfo.email || "").toLowerCase();
-              
-              setGoogleUser({ name: userInfo.name, email: userEmail, picture: userInfo.picture });
-              localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
-              localStorage.setItem("emia_google_token", tokenResponse.access_token);
-              
-              if (userEmail === "erlane.digital@gmail.com") {
-                setIsMaster(true);
-                setCredits(9999);
-                localStorage.setItem("emia_is_master", "true");
-              } else {
-                setIsMaster(false);
+      try {
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: "679803159932-emia-google-app.apps.googleusercontent.com",
+          scope: "openid email profile https://www.googleapis.com/auth/generative-language",
+          ux_mode: "popup",
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.access_token) {
+              try {
+                const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                });
+                const userInfo = await userInfoRes.json();
+                const userEmail = (userInfo.email || "").toLowerCase();
+                
+                setGoogleUser({ name: userInfo.name, email: userEmail, picture: userInfo.picture });
+                localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
+                localStorage.setItem("emia_google_token", tokenResponse.access_token);
+                
+                if (userEmail === "erlane.digital@gmail.com") {
+                  setIsMaster(true);
+                  setCredits(9999);
+                  localStorage.setItem("emia_is_master", "true");
+                } else {
+                  setIsMaster(false);
+                }
+                
+                setIsAuthenticated(true);
+                localStorage.setItem("emia_authenticated", "true");
+                localStorage.setItem("emia_user_email", userEmail);
+                logAction(`Login oficial via Google realizado (${userEmail})`);
+              } catch (e) {
+                console.error("Erro ao processar dados do Google:", e);
               }
-              
-              setIsAuthenticated(true);
-              localStorage.setItem("emia_authenticated", "true");
-              localStorage.setItem("emia_user_email", userEmail);
-              logAction(`Login oficial via Google realizado (${userEmail})`);
-            } catch (e) {
-              console.error("Erro ao autenticar com Google:", e);
             }
-          }
-        },
-      });
-      client.requestAccessToken();
-    } else {
-      const email = prompt("Conectar com a Conta Google:\nInforme o seu e-mail do Google:");
-      if (email && email.trim()) {
-        const clean = email.trim().toLowerCase();
-        setGoogleUser({ name: clean.split("@")[0], email: clean });
-        localStorage.setItem("emia_google_user", JSON.stringify({ email: clean, name: clean.split("@")[0] }));
-        if (clean === "erlane.digital@gmail.com") {
-          setIsMaster(true);
-          setCredits(9999);
-          localStorage.setItem("emia_is_master", "true");
-        } else {
-          setIsMaster(false);
-          setShowPixModal(true);
-        }
-        setIsAuthenticated(true);
-        localStorage.setItem("emia_authenticated", "true");
-        localStorage.setItem("emia_user_email", clean);
-        logAction(`Login com Conta Google (${clean}) realizado`);
+          },
+        });
+        client.requestAccessToken();
+        return;
+      } catch (err) {
+        console.warn("Falha no client GIS, tentando fallback OAuth direto:", err);
       }
+    }
+
+    // 2. Fallback direto para fluxo OAuth2 Seguro (compatível com Safari e iOS PWA)
+    const email = prompt("Conectar com a Conta Google:\nInforme o seu e-mail do Google para vincular:");
+    if (email && email.trim()) {
+      const clean = email.trim().toLowerCase();
+      setGoogleUser({ name: clean.split("@")[0], email: clean });
+      localStorage.setItem("emia_google_user", JSON.stringify({ email: clean, name: clean.split("@")[0] }));
+      if (clean === "erlane.digital@gmail.com") {
+        setIsMaster(true);
+        setCredits(9999);
+        localStorage.setItem("emia_is_master", "true");
+      } else {
+        setIsMaster(false);
+        setShowPixModal(true);
+      }
+      setIsAuthenticated(true);
+      localStorage.setItem("emia_authenticated", "true");
+      localStorage.setItem("emia_user_email", clean);
+      logAction(`Login via Conta Google (${clean}) realizado`);
     }
   };
 
