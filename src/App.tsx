@@ -1882,6 +1882,7 @@ export default function App() {
                         {/* RENDERIZAÇÃO DA CAPA ABNT (TOTALMENTE EDITÁVEL) */}
                         {isCover ? (
                           <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-4 select-text">
+                            {/* TOPO: INSTITUIÇÃO E CURSO */}
                             <div>
                               <div
                                 contentEditable
@@ -1903,18 +1904,22 @@ export default function App() {
                               )}
                             </div>
 
-                            <div className="my-auto py-6">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setStudentName(e.currentTarget.innerText.trim())}
-                                className="font-semibold text-sm sm:text-base uppercase tracking-wide focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {studentName || (lines[2] && lines[2] !== "CAPA_AUTO" ? lines[2] : "") || "NOME DO AUTOR"}
+                            {/* AUTOR: CENTRALIZADO ENTRE O TOPO E O MEIO CONFORME ABNT NBR 14724 */}
+                            {((studentName && studentName.trim()) || (lines[2] && lines[2] !== "CAPA_AUTO" && lines[2].trim())) && (
+                              <div className="my-auto py-4">
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setStudentName(e.currentTarget.innerText.trim())}
+                                  className="font-semibold text-sm sm:text-base uppercase tracking-wide focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {studentName || lines[2]}
+                                </div>
                               </div>
-                            </div>
+                            )}
 
-                            <div className="my-auto py-8">
+                            {/* CENTRO: TÍTULO E SUBTÍTULO */}
+                            <div className="my-auto py-6">
                               <div
                                 contentEditable
                                 suppressContentEditableWarning
@@ -1935,6 +1940,7 @@ export default function App() {
                               )}
                             </div>
 
+                            {/* RODAPÉ: CIDADE E ANO */}
                             <div className="mt-auto pt-6">
                               <div
                                 contentEditable
