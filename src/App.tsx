@@ -1940,38 +1940,46 @@ export default function App() {
                               )}
                             </div>
 
-                            {/* RODAPÉ: CIDADE E ANO */}
-                            <div className="mt-auto pt-6">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setCity(e.currentTarget.innerText.trim())}
-                                className="font-bold text-xs sm:text-sm uppercase text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {city || "CIDADE - UF"}
+                            {/* RODAPÉ: CIDADE E ANO (SOMENTE SE INFORMADO) */}
+                            {(((city && city.trim()) || (lines[5] && lines[5] !== "CAPA_AUTO" && lines[5].trim())) || ((year && year.trim()) || (lines[6] && lines[6] !== "CAPA_AUTO" && lines[6].trim()))) && (
+                              <div className="mt-auto pt-6">
+                                {((city && city.trim()) || (lines[5] && lines[5] !== "CAPA_AUTO" && lines[5].trim())) && (
+                                  <div
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => setCity(e.currentTarget.innerText.trim())}
+                                    className="font-bold text-xs sm:text-sm uppercase text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                  >
+                                    {city || lines[5]}
+                                  </div>
+                                )}
+                                {((year && year.trim()) || (lines[6] && lines[6] !== "CAPA_AUTO" && lines[6].trim())) && (
+                                  <div
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => setYear(e.currentTarget.innerText.trim())}
+                                    className="font-bold text-xs sm:text-sm text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                  >
+                                    {year || lines[6]}
+                                  </div>
+                                )}
                               </div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setYear(e.currentTarget.innerText.trim())}
-                                className="font-bold text-xs sm:text-sm text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {year || new Date().getFullYear().toString()}
-                              </div>
-                            </div>
+                            )}
                           </div>
                         ) : isTitlePage ? (
                           /* RENDERIZAÇÃO DA FOLHA DE ROSTO ABNT (TOTALMENTE EDITÁVEL) */
                           <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-4 select-text">
                             <div className="text-center">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setStudentName(e.currentTarget.innerText.trim())}
-                                className="font-semibold text-sm sm:text-base uppercase tracking-wide focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {studentName || (lines[0] !== "FOLHA_ROSTO_AUTO" ? lines[0] : "") || "NOME DO AUTOR"}
-                              </div>
+                              {((studentName && studentName.trim()) || (lines[0] && lines[0] !== "FOLHA_ROSTO_AUTO" && lines[0].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setStudentName(e.currentTarget.innerText.trim())}
+                                  className="font-semibold text-sm sm:text-base uppercase tracking-wide focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {studentName || lines[0]}
+                                </div>
+                              )}
                             </div>
 
                             <div className="my-auto text-center py-6">
@@ -2012,24 +2020,30 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="text-center mt-auto pt-6">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setCity(e.currentTarget.innerText.trim())}
-                                className="font-bold text-xs sm:text-sm uppercase text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {city || "CIDADE - UF"}
+                            {(((city && city.trim()) || (lines[3] && lines[3] !== "FOLHA_ROSTO_AUTO" && lines[3].trim())) || ((year && year.trim()) || (lines[4] && lines[4] !== "FOLHA_ROSTO_AUTO" && lines[4].trim()))) && (
+                              <div className="text-center mt-auto pt-6">
+                                {((city && city.trim()) || (lines[3] && lines[3] !== "FOLHA_ROSTO_AUTO" && lines[3].trim())) && (
+                                  <div
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => setCity(e.currentTarget.innerText.trim())}
+                                    className="font-bold text-xs sm:text-sm uppercase text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                  >
+                                    {city || lines[3]}
+                                  </div>
+                                )}
+                                {((year && year.trim()) || (lines[4] && lines[4] !== "FOLHA_ROSTO_AUTO" && lines[4].trim())) && (
+                                  <div
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => setYear(e.currentTarget.innerText.trim())}
+                                    className="font-bold text-xs sm:text-sm text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                  >
+                                    {year || lines[4]}
+                                  </div>
+                                )}
                               </div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setYear(e.currentTarget.innerText.trim())}
-                                className="font-bold text-xs sm:text-sm text-gray-800 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {year || new Date().getFullYear().toString()}
-                              </div>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT (PÁGINAS 3 EM DIANTE - 100% EDITÁVEL) */
