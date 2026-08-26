@@ -117,7 +117,7 @@ export default function App() {
   const [editorMode, setEditorMode] = useState<"a4" | "raw">("a4");
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [viewLayout, setViewLayout] = useState<"book" | "continuous">("book");
-  const [zoomScale, setZoomScale] = useState<number>(85); // 85% permite ver a folha A4 inteira em qualquer monitor
+  const [zoomScale, setZoomScale] = useState<number>(65); // 65% proporção padrão do Microsoft Word e Adobe Acrobat em visualização contínua
   const [isStageExpanded, setIsStageExpanded] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [stageHeight, setStageHeight] = useState<number>(0);
@@ -1778,7 +1778,7 @@ export default function App() {
             </div>
 
             {(activeTab === "editor" || activeTab === "generator") && (
-              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#525659]">
+              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
                 {(() => {
                   let pages: string[] = [];
                   
@@ -1814,14 +1814,7 @@ export default function App() {
                     return (
                       <div 
                         key={pIdx}
-                        style={{ 
-                          width: 'min(100%, 794px)',
-                          minHeight: '100%',
-                          aspectRatio: '210 / 297',
-                          transform: zoomScale !== 100 ? `scale(${zoomScale / 100})` : undefined,
-                          transformOrigin: 'top center',
-                        }}
-                        className="bg-white text-gray-900 shadow-[0_8px_30px_rgba(0,0,0,0.35)] ring-1 ring-black/10 rounded-[2px] relative flex flex-col p-[8%_6%_6%_8%] transition-transform select-text my-4 shrink-0 print:shadow-none print:ring-0 print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
+                        className="w-full max-w-[760px] bg-white text-gray-900 shadow-md border border-gray-200 rounded-sm relative flex flex-col p-8 sm:p-12 md:p-16 my-4 select-text print:shadow-none print:border-none print:m-0 print:p-0 print:h-[297mm] print:w-[210mm] print:break-after-page min-h-[900px]"
                       >
                         {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO */}
                         {isBodyPage && (
@@ -1922,7 +1915,7 @@ export default function App() {
                                 newPages[pIdx] = e.target.value;
                                 setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
                               }}
-                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm sm:text-base indent-8 bg-transparent min-h-[500px]"
+                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm indent-8 bg-transparent min-h-[480px]"
                             />
                           </div>
                         )}
@@ -1936,7 +1929,7 @@ export default function App() {
                       {/* BOTÃO PARA AUMENTAR OU DIMINUIR A PÁGINA NO PALCO */}
                       <div className="fixed right-6 bottom-24 z-30 flex items-center bg-white/95 backdrop-blur border border-gray-300 shadow-2xl rounded-2xl p-1 gap-1 select-none print:hidden">
                         <button
-                          onClick={() => setZoomScale(z => Math.max(40, z - 10))}
+                          onClick={() => setZoomScale(z => Math.max(30, z - 10))}
                           title="Diminuir Página (Zoom -)"
                           className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
                         >
@@ -1944,15 +1937,15 @@ export default function App() {
                         </button>
                         
                         <button
-                          onClick={() => setZoomScale(100)}
-                          title="Ajuste ao Palco (100%)"
+                          onClick={() => setZoomScale(65)}
+                          title="Padrão Word / PDF (65%)"
                           className="px-2.5 py-1 text-xs font-extrabold text-gray-800 hover:text-blue-600 hover:bg-gray-100 rounded-xl"
                         >
                           {zoomScale}%
                         </button>
                         
                         <button
-                          onClick={() => setZoomScale(z => Math.min(160, z + 10))}
+                          onClick={() => setZoomScale(z => Math.min(150, z + 10))}
                           title="Aumentar Página (Zoom +)"
                           className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
                         >
