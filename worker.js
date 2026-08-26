@@ -42,7 +42,7 @@ export default {
           });
         }
 
-        const model = body.model || "gemini-2.5-flash";
+        const model = body.model || "gemini-3.6-flash";
         const prompt = body.prompt || "";
 
         const geminiRes = await fetch(

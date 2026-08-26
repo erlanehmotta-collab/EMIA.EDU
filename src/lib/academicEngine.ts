@@ -1,6 +1,6 @@
 /**
  * EMIA.EDUTECH - Motor Acadêmico Autônomo & Client-Side Resiliente
- * Garante que o SaaS gere textos 100% das vezes (via Google Gemini ou Motor ABNT)
+ * Garante que o SaaS gere textos 100% das vezes (via Google Gemini 3.6 Flash)
  */
 
 export interface GenerateOptions {
@@ -16,6 +16,76 @@ export interface GenerateOptions {
   advisor?: string;
   customGeminiKey?: string;
   googleToken?: string;
+}
+
+export function getActiveGeminiKey(customKey?: string): string {
+  const envKey = typeof import.meta !== "undefined" && (import.meta as any).env ? (import.meta as any).env.VITE_GEMINI_API_KEY : "";
+  if (customKey && customKey.trim().length > 10) return customKey.trim();
+  const localKey = typeof localStorage !== "undefined" ? localStorage.getItem("emia_custom_gemini_key") : null;
+  return localKey || envKey || "";
+}
+
+export async function callGeminiDirectly(prompt: string, customKey?: string, model = "gemini-3.6-flash"): Promise<string> {
+  const apiKey = getActiveGeminiKey(customKey);
+  if (!apiKey) {
+    throw new Error("Chave de API Gemini não configurada.");
+  }
+
+  const fallbackModels = [
+    model,
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-flash-latest"
+  ];
+
+  for (const m of fallbackModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.85,
+            topP: 0.95
+          }
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text && text.trim().length > 0) {
+          return text.trim();
+        }
+      }
+    } catch (e) {
+      console.warn(`Tentativa com modelo ${m} falhou:`, e);
+    }
+  }
+
+  throw new Error("Nenhum modelo Gemini respondeu.");
+}
+
+export async function humanizeTextWithGemini(text: string, customKey?: string): Promise<string> {
+  const prompt = `Você é um especialista em escrita humana, clareza e originalidade textual acadêmica.
+Reescreva e humanize o texto abaixo, eliminando clichês de inteligência artificial, repetições robóticas e conectivos artificiais.
+Mantenha o rigor formal, as citações e os conceitos acadêmicos intactos.
+NÃO use saudações nem avisos. Retorne apenas o texto reescrito:
+
+${text}`;
+  return await callGeminiDirectly(prompt, customKey);
+}
+
+export async function correctSpellingWithGemini(text: string, customKey?: string): Promise<string> {
+  const prompt = `Você é um revisor e filólogo da língua portuguesa padrão culto.
+Corrija rigorosamente a ortografia, a concordância verbal e nominal, a regência e a pontuação do texto a seguir.
+Mantenha 100% da estrutura, dos termos técnicos e do significado original.
+Retorne apenas o texto corrigido sem nenhum comentário adicional:
+
+${text}`;
+  return await callGeminiDirectly(prompt, customKey);
 }
 
 export async function generateAcademicText(options: GenerateOptions): Promise<string> {
@@ -36,11 +106,6 @@ export async function generateAcademicText(options: GenerateOptions): Promise<st
   const cleanTitle = title.trim() || "Trabalho Acadêmico Geral";
   const cleanTopic = cleanTitle;
   const currentYear = new Date().getFullYear();
-
-  // Chave Gemini ativa (recuperada do storage do usuário ou ambiente)
-  const apiKey = (customGeminiKey && customGeminiKey.trim().length > 10) 
-    ? customGeminiKey.trim() 
-    : (localStorage.getItem("emia_custom_gemini_key") || "");
 
   const typeMap: Record<string, string> = {
     artigo: "Artigo Acadêmico",
@@ -117,39 +182,13 @@ ${an}
 ${prompt ? `Instruções adicionais do usuário: ${prompt}` : ""}
 IMPORTANTE: Não use saudações, frases como "aqui está" ou asteriscos excessivos. Entregue texto acadêmico puro e fluido.`;
 
-  const fallbackModels = [
-    "gemini-2.5-flash",
-    "gemini-3.7-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-flash-latest"
-  ];
-
-  for (const model of fallbackModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: {
-            temperature: 0.85,
-            topP: 0.95
-          }
-        })
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const generatedText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (generatedText && generatedText.trim().length > 50) {
-          return coverSection + generatedText.trim();
-        }
-      }
-    } catch (e) {
-      console.warn(`Tentativa Gemini (${model}) falhou:`, e);
+  try {
+    const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
+    if (generated && generated.length > 50) {
+      return coverSection + generated;
     }
+  } catch (err) {
+    console.warn("Chamada direta Gemini falhou, ativando gerador de contingência:", err);
   }
 
   // 2. Se a API de IA não responder, gera via Motor Estocástico Acadêmico Determinístico (100% de garantia)

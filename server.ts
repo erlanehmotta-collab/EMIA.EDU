@@ -84,7 +84,7 @@ async function startServer() {
 
   // Helper to call Google Gemini via OAuth Bearer token or direct REST
   async function generateFromGoogleOAuth(prompt: string, token: string) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
