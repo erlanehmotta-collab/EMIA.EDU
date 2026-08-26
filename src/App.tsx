@@ -1884,14 +1884,16 @@ export default function App() {
                           <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-4 select-text">
                             {/* TOPO: INSTITUIÇÃO E CURSO */}
                             <div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setInstitution(e.currentTarget.innerText.trim())}
-                                className="font-bold text-sm sm:text-base uppercase tracking-wider focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {institution || (lines[0] !== "CAPA_AUTO" ? lines[0] : "") || "NOME DA INSTITUIÇÃO DE ENSINO"}
-                              </div>
+                              {((institution && institution.trim()) || (lines[0] && lines[0] !== "CAPA_AUTO" && lines[0].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setInstitution(e.currentTarget.innerText.trim())}
+                                  className="font-bold text-sm sm:text-base uppercase tracking-wider focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {institution || lines[0]}
+                                </div>
+                              )}
                               {((course && course.trim()) || (lines[1] && lines[1] !== lines[0] && lines[1] !== "CAPA_AUTO" && lines[1].trim())) && (
                                 <div
                                   contentEditable
@@ -1920,14 +1922,16 @@ export default function App() {
 
                             {/* CENTRO: TÍTULO E SUBTÍTULO */}
                             <div className="my-auto py-6">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setTitle(e.currentTarget.innerText.trim())}
-                                className="font-extrabold text-base sm:text-lg uppercase tracking-tight text-gray-900 leading-snug focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {title || (lines[3] && lines[3] !== "CAPA_AUTO" ? lines[3] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
-                              </div>
+                              {((title && title.trim()) || (lines[3] && lines[3] !== "CAPA_AUTO" && lines[3].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setTitle(e.currentTarget.innerText.trim())}
+                                  className="font-extrabold text-base sm:text-lg uppercase tracking-tight text-gray-900 leading-snug focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {title || lines[3]}
+                                </div>
+                              )}
                               {((subtitle && subtitle.trim()) || (lines[4] && lines[4] !== "CAPA_AUTO" && lines[4].trim())) && (
                                 <div
                                   contentEditable
@@ -1983,22 +1987,24 @@ export default function App() {
                             </div>
 
                             <div className="my-auto text-center py-6">
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setTitle(e.currentTarget.innerText.trim())}
-                                className="font-bold text-base sm:text-lg uppercase tracking-tight text-gray-900 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {title || (lines[1] && lines[1] !== "FOLHA_ROSTO_AUTO" ? lines[1] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
-                              </div>
-                              {subtitle && subtitle.trim() && (
+                              {((title && title.trim()) || (lines[1] && lines[1] !== "FOLHA_ROSTO_AUTO" && lines[1].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setTitle(e.currentTarget.innerText.trim())}
+                                  className="font-bold text-base sm:text-lg uppercase tracking-tight text-gray-900 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {title || lines[1]}
+                                </div>
+                              )}
+                              {((subtitle && subtitle.trim()) || (lines[2] && lines[2] !== "FOLHA_ROSTO_AUTO" && lines[2].trim())) && (
                                 <div
                                   contentEditable
                                   suppressContentEditableWarning
                                   onBlur={(e) => setSubtitle(e.currentTarget.innerText.trim())}
                                   className="font-normal text-xs sm:text-sm text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
                                 >
-                                  {subtitle}
+                                  {subtitle || lines[2]}
                                 </div>
                               )}
                             </div>
