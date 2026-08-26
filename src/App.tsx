@@ -403,7 +403,7 @@ export default function App() {
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 hover:border-emerald-500 hover:bg-emerald-100/50 text-emerald-900 font-bold py-3 px-4 rounded-2xl shadow-xs transition-all text-xs active:scale-[0.98]"
           >
             <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>Usar minha Chave de API (Custo Zero do App)</span>
+            <span>Usar minha Chave de API</span>
           </button>
 
           <div className="mt-6 pt-5 border-t border-gray-100 text-center">
