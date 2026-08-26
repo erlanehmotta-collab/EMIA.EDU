@@ -1,0 +1,9 @@
+name = "emia-edu-worker"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# Bind Cloudflare KV Namespace to securely store user API Keys mapped by Google Email
+[[kv_namespaces]]
+binding = "USER_KEYS_KV"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_KV_NAMESPACE_PREVIEW_ID"
