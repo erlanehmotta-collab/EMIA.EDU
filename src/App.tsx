@@ -389,20 +389,58 @@ export default function App() {
   };
 
   const handleHumanize = async () => {
-    if (!generatedText) return;
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Por favor, gere ou cole um texto no editor para humanizar.");
+      return;
+    }
+
+    let targetText = generatedText;
+    let isSelection = false;
+    let start = 0;
+    let end = 0;
+
+    if (textareaRef.current) {
+      start = textareaRef.current.selectionStart;
+      end = textareaRef.current.selectionEnd;
+      if (start !== end && start >= 0 && end > start) {
+        targetText = generatedText.substring(start, end);
+        isSelection = true;
+      }
+    }
+
+    // Se for o documento completo e contiver capa ABNT, isola a capa para humanizar somente o conteúdo textual
+    let coverPrefix = "";
+    if (!isSelection && targetText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+      const parts = targetText.split("--- [QUEBRA DE PÁGINA] ---");
+      if (parts.length >= 3) {
+        coverPrefix = parts[0] + "--- [QUEBRA DE PÁGINA] ---" + parts[1] + "--- [QUEBRA DE PÁGINA] ---\n\n";
+        targetText = parts.slice(2).join("--- [QUEBRA DE PÁGINA] ---").trim();
+      }
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch("/api/humanize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: generatedText }),
+        body: JSON.stringify({ text: targetText }),
       });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+      const textData = await res.text(); 
+      let data; 
+      try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
-        setGeneratedText(data.text);
-        logAction("Texto Humanizado", data.text);
+        if (isSelection) {
+          const newFullText = generatedText.substring(0, start) + data.text + generatedText.substring(end);
+          setGeneratedText(newFullText);
+        } else {
+          setGeneratedText(coverPrefix ? coverPrefix + data.text : data.text);
+        }
+        setActiveTab("editor");
+        logAction("Texto Humanizado com IA (Anti-Plágio/Turnitin)", data.text);
+        setErrorMessage("✨ Texto humanizado com sucesso! Padrões de IA e clichês removidos.");
+        setTimeout(() => setErrorMessage(""), 3500);
       } else {
-        setErrorMessage(data.error);
+        setErrorMessage(data.error || "Falha ao humanizar texto.");
       }
     } catch (error) {
       console.error(error);
@@ -476,27 +514,58 @@ export default function App() {
     }
   };
 
-  const handlePaginate = async () => {
-    if (!generatedText) return;
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/paginate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: generatedText }),
-      });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-      if (data.success) {
-        setGeneratedText(data.text);
-      } else {
-        setErrorMessage(data.error);
-      }
-    } catch (error) {
-      console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao paginar.");
-    } finally {
-      setIsLoading(false);
+  const handlePaginate = () => {
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Por favor, gere ou insira um texto para paginar.");
+      return;
     }
+    
+    // Separa a Capa/Folha de Rosto (elementos pré-textuais não numerados) do corpo do trabalho
+    let coverBlocks: string[] = [];
+    let bodyText = generatedText;
+
+    if (generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+      const parts = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+      if (parts.length >= 3) {
+        coverBlocks = [parts[0].trim(), parts[1].trim()];
+        bodyText = parts.slice(2).join("--- [QUEBRA DE PÁGINA] ---").trim();
+      }
+    }
+
+    // Remove paginações anteriores
+    bodyText = bodyText.replace(/\n*---\s*\[Página\s*\d+\]\s*---\n*/gi, '\n\n');
+
+    // Divide em páginas A4 (~2200 caracteres com espaçamento 1.5)
+    const paragraphs = bodyText.split('\n\n');
+    let pages: string[] = [];
+    let currentChunk = "";
+
+    paragraphs.forEach((p) => {
+      if ((currentChunk + "\n\n" + p).length > 2200 && currentChunk.length > 0) {
+        pages.push(currentChunk.trim());
+        currentChunk = p;
+      } else {
+        currentChunk = currentChunk ? currentChunk + "\n\n" + p : p;
+      }
+    });
+    if (currentChunk.trim()) {
+      pages.push(currentChunk.trim());
+    }
+
+    const paginatedBody = pages.map((page, idx) => {
+      const pageNum = idx + 1;
+      return `${page}\n\n--- [Página ${pageNum}] ---`;
+    }).join('\n\n');
+
+    const fullResult = coverBlocks.length > 0
+      ? `${coverBlocks[0]}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${coverBlocks[1]}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${paginatedBody}`
+      : paginatedBody;
+
+    setGeneratedText(fullResult);
+    setActiveTab("editor");
+    logAction("Paginação no rodapé (1, 2, 3...) aplicada com sucesso");
+    setErrorMessage("✅ Numeração de páginas (1, 2, 3...) aplicada no rodapé conforme a ABNT!");
+    setTimeout(() => setErrorMessage(""), 3500);
   };
 
   const handleGenerateTOC = () => {
@@ -830,11 +899,42 @@ export default function App() {
     logAction('Dados do Trabalho limpos');
   };
 
+  const generateCoverTextLocally = () => {
+    const instName = (institution || "NOME DA INSTITUIÇÃO DE ENSINO").toUpperCase();
+    const courseName = course ? course.toUpperCase() : "";
+    const authorName = (studentName || "NOME DO AUTOR DO TRABALHO").toUpperCase();
+    const docTitle = (title || "TÍTULO DO TRABALHO ACADÊMICO").toUpperCase();
+    const docSubtitle = subtitle ? ` - ${subtitle}` : "";
+    const docCity = (city || "CIDADE - UF").toUpperCase();
+    const docYear = year || new Date().getFullYear().toString();
+    const docType = documentType === "outros" ? (customDocumentType || "TRABALHO ACADÊMICO").toUpperCase() : documentType.toUpperCase();
+    const advText = advisor ? `Orientador(a): ${advisor}` : "";
+
+    const coverPage = `${instName}${courseName ? `\n${courseName}` : ""}\n\n\n\n${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+
+    const titlePage = `${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n                                          ${docType} apresentado à ${instName}${courseName ? ` como requisito parcial para o curso de ${courseName}` : ""}.\n${advText ? `\n                                          ${advText}` : ""}\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+
+    return `${coverPage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${titlePage}\n\n--- [QUEBRA DE PÁGINA] ---`;
+  };
+
   const handleSaveProfile = () => {
-    const profile = { name: studentName, institution, city, year, advisor };
+    const profile = { name: studentName, institution, city, year, advisor, course };
     localStorage.setItem('emia_user_profile', JSON.stringify(profile));
-    logAction('Atualização do perfil de usuário salva localmente');
+    logAction('Dados do Trabalho salvos localmente');
+    
+    // Atualiza a capa no documento principal imediatamente
+    const newCover = generateCoverTextLocally();
+    if (generatedText && generatedText.trim()) {
+      const cleanBody = generatedText.replace(/^.*--- \[(?:QUEBRA DE PÁGINA|NOVA PÁGINA)\] ---\n*/is, '');
+      setGeneratedText(newCover + "\n\n" + (cleanBody || generatedText));
+    } else {
+      setGeneratedText(newCover + "\n\n1 INTRODUÇÃO\n\nEscreva ou cole seu texto acadêmico aqui...");
+    }
+    setActiveTab("editor");
     setShowProfileModal(false);
+    setShowWorkData(false);
+    setErrorMessage("✅ Dados da capa salvos e atualizados no documento principal!");
+    setTimeout(() => setErrorMessage(""), 3500);
   };
 
   return (
@@ -1145,25 +1245,51 @@ export default function App() {
         {/* Editor Area */}
         <div className="lg:col-span-8 flex flex-col h-[calc(100vh-8rem)]">
           
-          <div className="flex border-b border-gray-200 mb-4 gap-4">
-            <button 
-              onClick={() => setActiveTab("editor")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "editor" || activeTab === "generator" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              Documento Principal
-            </button>
-            <button 
-              onClick={() => setActiveTab("chat")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "chat" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              Chat para Edição e Consulta do Texto
-            </button>
-            <button 
-              onClick={() => setActiveTab("report")}
-              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "report" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              Relatório de Autenticidade
-            </button>
+          {/* Top Bar with Tabs and Quick Export Actions */}
+          <div className="flex flex-wrap items-center justify-between border-b border-gray-200 mb-4 pb-2 gap-3">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setActiveTab("editor")}
+                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "editor" || activeTab === "generator" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              >
+                Documento Principal
+              </button>
+              <button 
+                onClick={() => setActiveTab("chat")}
+                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "chat" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              >
+                Chat Acadêmico
+              </button>
+              <button 
+                onClick={() => setActiveTab("report")}
+                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "report" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              >
+                Relatório de Autenticidade
+              </button>
+            </div>
+
+            {/* Ações Rápidas de Exportação e Validação no Topo */}
+            <div className="flex items-center gap-1.5">
+              <Button 
+                onClick={handleCheckAuthenticity} 
+                disabled={isLoading || !generatedText} 
+                variant="outline" 
+                size="sm"
+                className="text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50 h-8"
+              >
+                {isLoading && activeTab === 'report' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-purple-600" />}
+                Checar Plágio/IA
+              </Button>
+              <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-700">
+                <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
+              </Button>
+              <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
+                <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
+              </Button>
+              <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                <FileDown className="w-3.5 h-3.5 mr-1" /> Word (.docx A4)
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col relative">
@@ -1180,7 +1306,7 @@ export default function App() {
               )}
               {errorMessage && (
                 <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-4 py-3 flex items-start gap-3 shadow-sm">
-                  <span className="mt-0.5">⚠️</span>
+                  <span className="mt-0.5">ℹ️</span>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{errorMessage}</p>
                     <button onClick={() => setErrorMessage("")} className="text-xs text-amber-600 hover:text-amber-900 underline mt-1">
@@ -1203,25 +1329,30 @@ export default function App() {
                 
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gray-50 border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
-                    <Button size="sm" onClick={handleHumanize} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
-                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-orange-600" /> : <UserCheck className="w-4 h-4 mr-2 text-orange-600" />}
-                      Humanizar texto
+                    <Button 
+                      size="sm" 
+                      onClick={handleHumanize} 
+                      disabled={isLoading || !generatedText} 
+                      className="flex-shrink-0 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold shadow-sm"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" /> : <UserCheck className="w-4 h-4 mr-2 text-white" />}
+                      ✨ Humanizar Texto (Anti-IA)
                     </Button>
-                    <Button size="sm" onClick={handleGenerateCover} disabled={isLoading} variant="outline" className="flex-shrink-0">
-                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" /> : <BookOpen className="w-4 h-4 mr-2 text-blue-600" />}
-                      Gerar Capa
+                    <Button size="sm" onClick={handleGenerateCover} disabled={isLoading} variant="outline" className="flex-shrink-0 font-medium">
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" /> : <BookOpen className="w-4 h-4 mr-2 text-blue-600" />}
+                      📄 Atualizar Capa ABNT
                     </Button>
-                    <Button size="sm" onClick={handleGenerateTOC} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
+                    <Button size="sm" onClick={handleGenerateTOC} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0 font-medium">
                       <ListOrdered className="w-4 h-4 mr-2 text-indigo-600" />
-                      Sumário Dinâmico
+                      📑 Sumário Dinâmico
                     </Button>
-                    <Button size="sm" onClick={() => setShowReferenceModal(true)} variant="outline" className="flex-shrink-0 border-dashed border-gray-300">
+                    <Button size="sm" onClick={() => setShowReferenceModal(true)} variant="outline" className="flex-shrink-0 border-dashed border-gray-300 font-medium">
                       <Link className="w-4 h-4 mr-2 text-gray-500" />
-                      Referências (DOI/Link)
+                      🔗 Referências (DOI/Link)
                     </Button>
-                    <Button size="sm" onClick={handlePaginate} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0">
-                      {isLoading && activeTab === 'editor' ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-emerald-600" /> : <Hash className="w-4 h-4 mr-2 text-emerald-600" />}
-                      Paginar
+                    <Button size="sm" onClick={handlePaginate} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0 text-emerald-700 border-emerald-200 hover:bg-emerald-50 font-medium">
+                      <Hash className="w-4 h-4 mr-2 text-emerald-600" />
+                      🔢 Paginação Rodapé (1, 2...)
                     </Button>
                   </div>
                 </div>
@@ -1288,35 +1419,23 @@ export default function App() {
             )}
           </div>
 
-          {/* PAINEL DE VERIFICAÇÃO E EXPORTAÇÃO (EMBAIXO DO TEXTO PRINCIPAL) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-purple-600" />
-                Validação:
+          {/* BARRA INFORMATIVA DE STATUS ABNT */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mt-3 flex flex-wrap items-center justify-between text-xs text-gray-600">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5 font-medium text-gray-800">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                Padrão ABNT NBR 14724 (Folha A4: 210x297mm)
               </span>
-              <Button 
-                onClick={handleCheckAuthenticity} 
-                disabled={isLoading || !generatedText} 
-                variant="outline" 
-                size="sm"
-                className="text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50"
-              >
-                {isLoading && activeTab === 'report' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-purple-600" />}
-                Checar Plágio / IA
-              </Button>
+              <span className="text-gray-400">•</span>
+              <span>Margens Oficiais: 3cm / 2cm</span>
+              <span className="text-gray-400">•</span>
+              <span>Fonte: Arial 12pt (Espaçamento 1.5)</span>
             </div>
             
             <div className="flex items-center gap-2">
-              <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs text-gray-700">
-                <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Texto
-              </Button>
-              <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PDF
-              </Button>
-              <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
-                <FileDown className="w-3.5 h-3.5 mr-1.5" /> Baixar Word (.docx)
-              </Button>
+              <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded">
+                {generatedText ? `${generatedText.length} caracteres` : "0 caracteres"}
+              </span>
             </div>
           </div>
 

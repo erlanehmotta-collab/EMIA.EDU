@@ -264,18 +264,37 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
   app.post("/api/humanize", async (req, res) => {
     try {
       const { text } = req.body;
-      const instruction = `Atue como um escritor e editor humano de excelência. Sua tarefa é reescrever o texto a seguir de forma que contorne 100% dos detectores de IA (Turnitin, GPTZero, etc), mantendo o significado original e o rigor.
+      if (!text || !text.trim()) {
+        return res.status(400).json({ success: false, error: "Texto não fornecido para humanização." });
+      }
 
-Aplique as seguintes técnicas rigorosamente:
-1. Alta Burstiness (Variação de Ritmo): Intercale frases curtas, impactantes e diretas com frases mais longas. O ritmo não pode ser monótono ou matemático.
-2. Alta Perplexidade (Vocabulário Orgânico): Evite as palavras e estruturas estatisticamente prováveis. Use vocabulário preciso e fuja do rebuscamento artificial.
-3. Estrutura de Parágrafos Irregular: Parágrafos humanos variam de tamanho. Crie parágrafos de 2 linhas e outros de 5 ou 6 linhas.
-4. Remoção de Marcadores de IA: É estritamente PROIBIDO usar transições robóticas como: "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Além disso", "Por outro lado", "Neste contexto", "Crucial", "Desde os primórdios".
-5. Voz Ativa e Direta: Vá direto ao ponto sem enrolação, eliminando a voz passiva excessiva.
-6. Zero Formatação Extra: Não inclua introduções. Apenas devolva o texto reescrito.
+      const instruction = `Atue como um escritor e editor humano de alto nível. Sua tarefa é reescrever o texto a seguir com máxima naturalidade para contornar 100% de detectores de IA (Turnitin, GPTZero, CopyLeaks):
 
-Texto original:\n${text}`;
-      const humanizedText = await generateFromText(instruction);
+DIRETRIZES DE HUMANIZAÇÃO:
+1. ALTA BURSTINESS (Variação de Ritmo): Intercale frases curtas, incisivas e dinâmicas com períodos mais elaborados. Elimine a cadência robótica previsível.
+2. ALTA PERPLEXIDADE: Utilize um vocabulário rico, variado e orgânico. Fuja de fórmulas matemáticas e clichês de modelos de linguagem.
+3. ZERO CLICHÊS DE IA: É ESTRITAMENTE PROIBIDO utilizar: "Em suma", "Vale ressaltar", "É importante notar", "No panorama atual", "Podemos concluir", "Desde os primórdios", "Além disso", "Neste sentido".
+4. PRESERVAÇÃO DE FATOS E ESTRUTURA: Mantenha as citações, conceitos e argumentação científica do texto original.
+5. RESPOSTA DIRETA: Retorne APENAS o texto reescrito, sem introduções ou frases de cortesia.
+
+Texto para humanizar:\n${text}`;
+
+      let humanizedText = await generateFromText(instruction, 5, true);
+      
+      // Limpeza estocástica e determinística de vestígios
+      humanizedText = (humanizedText || "")
+        .replace(/^```[a-z]*\n?/gm, "")
+        .replace(/```$/gm, "")
+        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*)$/gim, "")
+        .replace(/\b(Contudo,)\b/gi, "No entanto,")
+        .replace(/\b(Diante disso,)\b/gi, "Assim,")
+        .replace(/\b(No panorama atual,)\b/gi, "Atualmente,")
+        .replace(/\b(Vale ressaltar que)\b/gi, "Nota-se que")
+        .replace(/\b(É importante notar que)\b/gi, "Observa-se que")
+        .replace(/\b(Podemos concluir que)\b/gi, "Dessa forma,")
+        .replace(/\b(Em suma,)\b/gi, "Em síntese,")
+        .trim();
+
       res.json({ success: true, text: humanizedText });
     } catch (error) {
       console.error(error);
