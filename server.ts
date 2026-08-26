@@ -395,15 +395,16 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Texto não fornecido para correção ortográfica." });
       }
 
-      const instruction = `Atue como um revisor profissional de língua portuguesa e normas gramaticais/acadêmicas.
-Sua tarefa é CORRIGIR e REVISAR meticulosamente a ortografia, acentuação, concordância verbal/nominal, regência, crase e pontuação do texto a seguir.
+      const instruction = `Atue como o revisor e editor-chefe de língua portuguesa e normas acadêmicas.
+Sua tarefa é CORRIGIR AUTOMATICAMENTE A ACENTUAÇÃO E A ORTOGRAFIA de todo o texto a seguir.
 
-DIRETRIZES:
-1. Corrija todos os erros ortográficos e de pontuação de acordo com o Novo Acordo Ortográfico da Língua Portuguesa.
-2. Preserve rigorosamente o sentido original, o estilo do autor e qualquer marcação como "--- [QUEBRA DE PÁGINA] ---" ou nomes próprios.
-3. Retorne APENAS o texto devidamente corrigido, sem adicionar saudações, introduções ou notas de revisão.
+DIRETRIZES OBRIGATÓRIAS:
+1. ACENTUAÇÃO AUTOMÁTICA COMPLETA: Adicione todos os acentos agudos, circunflexos, graves (crase) e tis que estiverem faltando nas palavras (ex: "educacao" -> "educação", "ciencia" -> "ciência", "visao" -> "visão", "politica" -> "política", "metodologica" -> "metodológica", "critica" -> "crítica", "analise" -> "análise", "tambem" -> "também", "possivel" -> "possível").
+2. ORTOGRAFIA E GRAMÁTICA: Corrija concordâncias verbais e nominais, pontuação e grafia pelo Novo Acordo Ortográfico.
+3. PRESERVAÇÃO ESTRUTURAL: Mantenha exatamente intacto o sentido, os parágrafos e marcadores como "--- [QUEBRA DE PÁGINA] ---".
+4. RETORNO LIMPO: Retorne APENAS o texto devidamente acentuado e corrigido, sem adicionar saudações, introduções ou notas de revisão.
 
-Texto para revisão ortográfica e gramatical:
+Texto para acentuação e revisão ortográfica:
 \n${text}`;
 
       let correctedText = await generateFromText(instruction, req, 5, true);

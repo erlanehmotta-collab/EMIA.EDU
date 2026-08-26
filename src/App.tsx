@@ -1768,7 +1768,7 @@ export default function App() {
                 className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8"
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />}
-                ✍️ Arrumar Ortografia
+                ✍️ Correção Ortográfica
               </Button>
               <Button 
                 onClick={handleCheckAuthenticity} 
