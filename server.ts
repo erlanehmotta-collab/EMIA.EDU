@@ -272,8 +272,11 @@ async function startServer() {
       
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
+      // PASSO 1: Geração de Conteúdo por IA
+      let generatedText = await generateFromText(instruction, req);
+
       // PASSO 2a: Filtro Determinístico de Varredura (Remoção de qualquer vazamento de instrução, prompt ou clichê)
-      generatedText = generatedText
+      generatedText = (generatedText || "")
         .replace(/^```[a-z]*\n?/gm, "")
         .replace(/```$/gm, "")
         .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*|Como um assistente.*|Entendido.*)$/gim, "")

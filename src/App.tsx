@@ -2111,15 +2111,6 @@ export default function App() {
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
                     <Button 
                       size="sm" 
-                      onClick={handleCorrectSpelling} 
-                      disabled={isLoading || !generatedText} 
-                      className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
-                    >
-                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" /> : <CheckCircle className="w-4 h-4 mr-2 text-white" />}
-                      ✍️ Correção Ortográfica e Gramatical
-                    </Button>
-                    <Button 
-                      size="sm" 
                       onClick={handleHumanize} 
                       disabled={isLoading || !generatedText} 
                       className="flex-shrink-0 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold shadow-sm"
