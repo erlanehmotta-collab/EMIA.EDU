@@ -272,14 +272,17 @@ async function startServer() {
       
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
-      // PASSO 1: Geração Bruta
-      let generatedText = await generateFromText(instruction, req);
-
-      // PASSO 2a: Filtro Determinístico de Varredura (Remoção de rastros e clichês)
-      let deterministicFiltered = generatedText
+      // PASSO 2a: Filtro Determinístico de Varredura (Remoção de qualquer vazamento de instrução, prompt ou clichê)
+      generatedText = generatedText
         .replace(/^```[a-z]*\n?/gm, "")
         .replace(/```$/gm, "")
         .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*|Como um assistente.*|Entendido.*)$/gim, "")
+        .replace(/REGRA ABSOLUTA.*?(\n\n|$)/gis, "")
+        .replace(/DIRETRIZ.*?(\n\n|$)/gis, "")
+        .replace(/IMPORTANTE:.*?(\n\n|$)/gis, "")
+        .replace(/ID de variação estocástica:.*?(\n\n|$)/gis, "")
+        .replace(/Instruções adicionais detalhadas:.*?(\n\n|$)/gis, "")
+        .replace(/Siga a estrutura padrão acadêmica.*?(\n\n|$)/gis, "")
         .replace(/\b(Contudo,)\b/gi, "No entanto,")
         .replace(/\b(Diante disso,)\b/gi, "Assim,")
         .replace(/\b(No panorama atual,)\b/gi, "Atualmente,")
@@ -290,25 +293,14 @@ async function startServer() {
         .replace(/\b(Desde os primórdios,)\b/gi, "Historicamente,")
         .trim();
 
-      // PASSO 2b: Filtro Estocástico de Humanização (Anti-IA)
-      const humanizeInstruction = `Você é a camada de sanitização final estocástica. Sua tarefa é reescrever o texto a seguir para destruir 100% da assinatura de IA (perplexidade artificial e cadência previsível), garantindo aprovação em detectores como Turnitin/GPTZero, mas mantendo o rigor acadêmico intacto.
-
-Diretrizes Estritas de Pós-Processamento:
-1. Eliminar Cadência Monótona: Quebre a estrutura matemática de parágrafos. Intercale parágrafos curtos (2-3 linhas) com densos (5-6 linhas) simulando a respiração e o fluxo cognitivo humano.
-2. Variação Sintática (Burstiness): Force a variação de ritmo usando orações diretas e incisivas contrastando com períodos longos. 
-3. Vocabulário Orgânico (Alta Perplexidade): Fuja do rebuscamento óbvio da IA. Substitua palavras estatisticamente previsíveis por escolhas precisas do jargão acadêmico, sem exageros.
-4. Remoção Definitiva de Clichês e Transições Artificiais: Zere o uso de "Além disso", "Neste contexto", "Sendo assim" em inícios de parágrafos sequenciais.
-5. PRESERVAÇÃO ESTRUTURAL ABNT: Preserve rigorosamente qualquer marcação de "--- [QUEBRA DE PÁGINA] ---", CAIXA ALTA (como Capa e Sumário). Aplique a humanização apenas no texto discursivo.
-6. ZERO METADADOS: Retorne EXCLUSIVAMENTE o documento final, sem cabeçalhos, sem saudações e sem comentários.
-
-Texto bruto para sanitização estocástica:
-\n${deterministicFiltered}`;
-      
       // Varredura final de segurança
       generatedText = generatedText
         .replace(/^```[a-z]*\n?/gm, "")
         .replace(/```$/gm, "")
         .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*)$/gim, "")
+        .replace(/REGRA ABSOLUTA.*$/gims, "")
+        .replace(/DIRETRIZ.*$/gims, "")
+        .replace(/Instruções adicionais.*$/gims, "")
         .trim();
 
       // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) + Corpo Completo (Págs 3+)
