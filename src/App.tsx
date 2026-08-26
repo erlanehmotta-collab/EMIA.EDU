@@ -1812,7 +1812,7 @@ export default function App() {
                   const lines = pageText.split("\n").map(l => l.trim()).filter(Boolean);
 
                   return (
-                    <div className="flex-1 flex items-center justify-center p-2 md:p-4 relative overflow-hidden select-text">
+                    <div className="flex-1 w-full h-full flex items-center justify-center p-2 md:p-5 pb-20 relative overflow-hidden select-text">
                       
                       {/* SETA ESQUERDA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
                       <button
@@ -1834,9 +1834,10 @@ export default function App() {
                         <ChevronRight className="w-5 h-5 md:w-7 md:h-7 stroke-[2.5]" />
                       </button>
 
-                      {/* FOLHA A4 COMPLETA VISÍVEL 100% DE UMA VEZ (PROPORÇÃO EXATA 210 x 297mm) */}
+                      {/* FOLHA A4 100% ADAPTADA DINAMICAMENTE AO PALCO */}
                       <div 
-                        className="h-[calc(100vh-10.5rem)] max-h-[860px] aspect-[210/297] w-auto bg-white shadow-2xl rounded-xs border border-gray-300 relative flex flex-col p-[6%_5%_5%_6%] transition-all select-text print:shadow-none print:border-none print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
+                        style={{ height: 'calc(100% - 10px)', maxHeight: '100%', maxWidth: '100%', aspectRatio: '210 / 297' }}
+                        className="w-auto bg-white shadow-2xl rounded-xs border border-gray-400 relative flex flex-col p-[4%_4%_4%_4%] transition-all select-text overflow-hidden print:shadow-none print:border-none print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
                       >
                         {/* INDICAÇÃO DISCRETA DA FOLHA NO TOPO */}
                         <div className="flex items-center justify-between border-b border-gray-100 pb-1 mb-2 text-[10px] text-gray-400 select-none print:hidden">
@@ -1862,7 +1863,7 @@ export default function App() {
 
                         {/* RENDERIZAÇÃO DA CAPA ABNT */}
                         {isCover ? (
-                          <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-2 select-text overflow-hidden">
+                          <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-2 select-text overflow-y-auto">
                             <div>
                               <h1 className="font-bold text-xs sm:text-sm uppercase tracking-wider">
                                 {institution || lines[0] || "NOME DA INSTITUIÇÃO DE ENSINO"}
@@ -1902,7 +1903,7 @@ export default function App() {
                           </div>
                         ) : isTitlePage ? (
                           /* RENDERIZAÇÃO DA FOLHA DE ROSTO ABNT */
-                          <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-2 select-text overflow-hidden">
+                          <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-2 select-text overflow-y-auto">
                             <div className="text-center">
                               <p className="font-semibold text-xs sm:text-sm uppercase tracking-wide">
                                 {studentName || lines[0] || "NOME DO AUTOR"}
@@ -1952,7 +1953,7 @@ export default function App() {
                                 newPages[safePageIndex] = e.target.value;
                                 setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
                               }}
-                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.4] text-justify text-[10pt] sm:text-[11pt] indent-6 bg-transparent"
+                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.5] text-justify text-xs sm:text-[11pt] indent-6 bg-transparent"
                               placeholder={`Escreva o texto acadêmico da página ${pageNum} aqui...`}
                             />
                           </div>
