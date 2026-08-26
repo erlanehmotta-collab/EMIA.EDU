@@ -2051,6 +2051,8 @@ export default function App() {
                             <div
                               contentEditable
                               suppressContentEditableWarning
+                              spellCheck={true}
+                              lang="pt-BR"
                               onInput={(e) => {
                                 const newPages = [...pages];
                                 newPages[pIdx] = e.currentTarget.innerText;
@@ -2104,9 +2106,18 @@ export default function App() {
                     </div>
                   );
                 })()}
-                
+
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.08)] z-20">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
+                    <Button 
+                      size="sm" 
+                      onClick={handleCorrectSpelling} 
+                      disabled={isLoading || !generatedText} 
+                      className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" /> : <CheckCircle className="w-4 h-4 mr-2 text-white" />}
+                      ✍️ Correção Ortográfica e Gramatical
+                    </Button>
                     <Button 
                       size="sm" 
                       onClick={handleHumanize} 
