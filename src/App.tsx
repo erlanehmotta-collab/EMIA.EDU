@@ -210,16 +210,6 @@ export default function App() {
     localStorage.setItem("emia_authenticated", "true");
     localStorage.setItem("emia_user_email", clean);
 
-    if (apiKeyInput.trim()) {
-      if (selectedEngine === "gemini") {
-        setCustomGeminiKey(apiKeyInput.trim());
-        localStorage.setItem("emia_custom_gemini_key", apiKeyInput.trim());
-      } else {
-        setCustomOpenaiKey(apiKeyInput.trim());
-        localStorage.setItem("emia_custom_openai_key", apiKeyInput.trim());
-      }
-    }
-
     if (clean === "erlane.digital@gmail.com") {
       setIsMaster(true);
       setCredits(9999);
