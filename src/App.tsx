@@ -69,6 +69,7 @@ export default function App() {
 
   // Profile and Audit State
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [profileTab, setProfileTab] = useState<"dados" | "historico">("dados");
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
@@ -390,12 +391,148 @@ export default function App() {
             <span>{isGoogleLoggingIn ? "Conectando ao Google..." : "Entrar com o Google"}</span>
           </button>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+          {/* DIVISOR OU CHAVE PRÓPRIA DE API */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-3 text-gray-400 font-bold">Ou conecte sua própria chave de IA</span></div>
+          </div>
+
+          <button
+            onClick={() => setShowApiKeyModal(true)}
+            type="button"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 hover:border-emerald-500 hover:bg-emerald-100/50 text-emerald-900 font-bold py-3 px-4 rounded-2xl shadow-xs transition-all text-xs active:scale-[0.98]"
+          >
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <span>Usar minha Chave de API (Custo Zero do App)</span>
+          </button>
+
+          <div className="mt-6 pt-5 border-t border-gray-100 text-center">
             <p className="text-[11px] text-gray-400 font-medium">
-              Conexão automática com Google Gemini & ChatGPT • PWA
+              Conexão com Google Gemini, OpenAI ChatGPT, Claude & OpenSource • PWA
             </p>
           </div>
         </div>
+
+        {/* MODAL DE CHAVE DE API PRÓPRIA COM PASSO A PASSO SIMPLES */}
+        {showApiKeyModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 md:p-8 border border-gray-100 animate-in fade-in zoom-in-95 duration-150 relative max-h-[90vh] overflow-y-auto">
+              <button 
+                onClick={() => setShowApiKeyModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center mb-5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md shadow-emerald-500/20">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Conectar sua Chave de API de IA</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Os créditos serão consumidos <strong>diretamente da sua conta</strong>, com acesso 100% ilimitado.
+                </p>
+              </div>
+
+              {/* ABAS DE PROVEDOR */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setAiProvider("gemini")}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    aiProvider === "gemini" 
+                      ? "bg-blue-50 border-blue-600 text-blue-700 shadow-xs" 
+                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <span>🌟</span> Google Gemini (Grátis)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiProvider("openai")}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    aiProvider === "openai" 
+                      ? "bg-emerald-50 border-emerald-600 text-emerald-700 shadow-xs" 
+                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <span>🤖</span> OpenAI / ChatGPT
+                </button>
+              </div>
+
+              {/* TUTORIAL PASSO A PASSO ULTRA SIMPLES */}
+              {aiProvider === "gemini" ? (
+                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 mb-4 text-xs text-blue-950 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-blue-900">
+                    <span>📋</span> Passo a Passo para pegar sua chave Gemini (100% Grátis):
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-blue-900/90 leading-relaxed">
+                    <li>Acesse o site oficial: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700">aistudio.google.com/apikey</a></li>
+                    <li>Faça login com sua conta do Google (Gmail).</li>
+                    <li>Clique no botão azul <strong>"Create API key"</strong> (Criar chave).</li>
+                    <li>Copie a chave gerada (começa com <code className="bg-blue-100 px-1 py-0.5 rounded font-mono">AIzaSy...</code>) e cole no campo abaixo.</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 mb-4 text-xs text-emerald-950 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                    <span>📋</span> Passo a Passo para pegar sua chave OpenAI / ChatGPT:
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-emerald-900/90 leading-relaxed">
+                    <li>Acesse o site: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-700">platform.openai.com/api-keys</a></li>
+                    <li>Faça login na sua conta OpenAI.</li>
+                    <li>Clique em <strong>"Create new secret key"</strong>.</li>
+                    <li>Copie a chave gerada (começa com <code className="bg-emerald-100 px-1 py-0.5 rounded font-mono">sk-...</code>) e cole no campo abaixo.</li>
+                  </ol>
+                </div>
+              )}
+
+              {/* INPUT DA CHAVE */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Cole sua Chave de API {aiProvider === "gemini" ? "Google Gemini" : "OpenAI"}:
+                  </label>
+                  <input
+                    type="password"
+                    value={aiProvider === "gemini" ? customGeminiKey : customOpenaiKey}
+                    onChange={(e) => {
+                      if (aiProvider === "gemini") {
+                        setCustomGeminiKey(e.target.value);
+                        localStorage.setItem("emia_custom_gemini_key", e.target.value.trim());
+                      } else {
+                        setCustomOpenaiKey(e.target.value);
+                        localStorage.setItem("emia_custom_openai_key", e.target.value.trim());
+                      }
+                    }}
+                    placeholder={aiProvider === "gemini" ? "AIzaSy..." : "sk-..."}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <Button
+                  onClick={() => {
+                    const currentKey = aiProvider === "gemini" ? customGeminiKey : customOpenaiKey;
+                    if (!currentKey || currentKey.trim().length < 10) {
+                      setErrorMessage("Por favor, cole uma chave de API válida.");
+                      setTimeout(() => setErrorMessage(""), 3000);
+                      return;
+                    }
+                    localStorage.setItem("emia_authenticated", "true");
+                    localStorage.setItem("emia_ai_provider", aiProvider);
+                    setIsAuthenticated(true);
+                    setShowApiKeyModal(false);
+                    setErrorMessage("✅ Chave conectada com sucesso! Seus créditos próprios estão ativos.");
+                    setTimeout(() => setErrorMessage(""), 4000);
+                  }}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" /> Salvar Chave e Entrar no App
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MODAL OFICIAL GOOGLE SIGN-IN COM SELEÇÃO DE IA */}
         {showGoogleModal && (
@@ -1528,6 +1665,11 @@ export default function App() {
               <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">+ Recarregar (PIX)</span>
             </button>
           )}
+
+          <Button variant="outline" size="sm" onClick={() => setShowApiKeyModal(true)} className="border-emerald-200 text-emerald-800 hover:bg-emerald-50 font-bold text-xs">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+            Minha Chave de API
+          </Button>
 
           <Button variant="outline" size="sm" onClick={() => setShowProfileModal(true)} className="border-gray-200">
             <User className="w-4 h-4 mr-2" />
