@@ -390,7 +390,7 @@ export default function App() {
           </div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
           <p className="text-gray-600 mt-2 text-xs leading-relaxed max-w-xs mx-auto mb-8">
-            Assistente acadêmico com IA Google Gemini & ChatGPT nas normas ABNT NBR 14724 em folha A4 oficial.
+            Assistente acadêmico com IA Google Gemini nas normas ABNT NBR 14724 em folha A4 oficial.
           </p>
 
           {/* BOTÃO ÚNICO DE ENTRADA EXCLUSIVA COM GOOGLE */}
@@ -1508,38 +1508,10 @@ export default function App() {
           <span className="font-semibold text-gray-900 text-lg">EMIA.EDUTECH</span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Seletor Rápido de IA: Google Gemini ou ChatGPT */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-            <button
-              onClick={() => {
-                setAiProvider("gemini");
-                localStorage.setItem("emia_ai_provider", "gemini");
-                setErrorMessage("Motor ativo alterado para Google Gemini 2.5.");
-                setTimeout(() => setErrorMessage(""), 2500);
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
-                aiProvider === "gemini" 
-                  ? "bg-white text-blue-700 shadow-xs border border-gray-200" 
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-            >
-              <span>🌟</span> Gemini 2.5
-            </button>
-            <button
-              onClick={() => {
-                setAiProvider("openai");
-                localStorage.setItem("emia_ai_provider", "openai");
-                setErrorMessage("Motor ativo alterado para OpenAI ChatGPT.");
-                setTimeout(() => setErrorMessage(""), 2500);
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
-                aiProvider === "openai" 
-                  ? "bg-white text-emerald-700 shadow-xs border border-gray-200" 
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-            >
-              <span>🤖</span> ChatGPT
-            </button>
+          {/* Indicador de IA Ativa: Google Gemini */}
+          <div className="flex items-center gap-1.5 bg-blue-50/80 border border-blue-200/80 text-blue-900 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+            <span>Google Gemini</span>
           </div>
 
           {/* Indicador de Cota Própria / Créditos */}
