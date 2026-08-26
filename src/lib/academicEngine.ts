@@ -1,13 +1,6 @@
 /**
- * EMIA.EDUTECH - Motor Acadêmico de Excelência & Normalização ABNT (Padrão UNESP / USP)
- * Baseado nas diretrizes oficiais da Biblioteca UNESP Franca & ECA-USP:
- * - ABNT NBR 14724 (Trabalhos Acadêmicos: TCC, Monografia, Dissertação, Tese)
- * - ABNT NBR 6022 (Artigo em publicação periódica técnica e científica)
- * - ABNT NBR 6028 (Resumos e Fichamentos)
- * - ABNT NBR 10520:2023 (Citações - Sistema Autor-Data em Caixa Mista: Silva, 2023)
- * - ABNT NBR 6023:2025 / 2018 (Referências Bibliográficas)
- * - ABNT NBR 6027 (Sumário)
- * - ABNT NBR 6024 (Numeração progressiva das seções)
+ * EMIA.EDUTECH - Motor Acadêmico Completo & Normalização ABNT (UNESP & USP)
+ * Gera Capa, Contra-Capa (Folha de Rosto), Resumo, Abstract, Sumário, Seções e Referências
  */
 
 export interface GenerateOptions {
@@ -78,10 +71,6 @@ export async function callGeminiDirectly(prompt: string, customKey?: string, mod
   throw new Error("Nenhum modelo Gemini respondeu.");
 }
 
-/**
- * Adequação de Citações para a NBR 10520:2023 (Padrão USP / UNESP)
- * Converte citações em caixa alta (SILVA, 2020) para caixa mista (Silva, 2020)
- */
 export function normalizeCitationsToABNT2023(text: string): string {
   return text.replace(/\(([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,})(,\s*\d{4}(?:,\s*p\.\s*\d+)?)\)/g, (_, author, rest) => {
     const titleCaseAuthor = author.charAt(0).toUpperCase() + author.slice(1).toLowerCase();
@@ -141,32 +130,29 @@ export async function generateAcademicText(options: GenerateOptions): Promise<st
     relatorio: "Relatório Técnico-Científico",
     monografia: "Monografia / TCC",
     projeto: "Projeto de Pesquisa",
+    artigo_opiniao: "Artigo de Opinião"
   };
 
   const selectedTypeName = typeMap[documentType] || documentType || "Artigo Acadêmico";
   
-  // CLASSIFICAÇÃO RIGOROSA DAS NORMAS ABNT (DIRETRIZES UNESP / USP):
-  // 1. Monografias, TCCs, Relatórios e Projetos: NBR 14724 (Capa, Folha de Rosto, Folha de Aprovação opcional, Sumário).
-  // 2. Artigos (Científico/Acadêmico): NBR 6022 (Cabeçalho com Título, Autor, Resumo e Introdução na 1ª página).
-  // 3. Resumos / Fichamentos: NBR 6028 (Zero capa, texto corrido em parágrafo único de 150 a 500 palavras + Palavras-chave).
-  // 4. Resenhas Críticas: Referência completa da obra e apreciação crítica.
-  // 5. Redações ENEM: Prosa contínua de 4 parágrafos.
-  const requiresCoverAndTitlePage = ["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType);
-  const requiresArticleHeader = ["artigo", "artigo_cientifico", "estudo_caso"].includes(documentType);
+  // DOCUMENTOS QUE EXIGEM CAPA E FOLHA DE ROSTO (CONTRA-CAPA) COMPLETAS:
+  // Artigo Científico, Artigo Acadêmico, Monografia, TCC, Relatório, Projeto de Pesquisa, Estudo de Caso.
+  // APENAS Resumo simples e Redação ENEM não possuem capa separada.
+  const requiresCoverAndTitlePage = !["resumo", "redacao", "resenha"].includes(documentType);
 
   let prefixHeader = "";
 
-  // 1. CAPA + FOLHA DE ROSTO (ABNT NBR 14724 / TEMPLATES UNESP & ECA-USP)
-  if (requiresCoverAndTitlePage && (studentName || course || institution || city || year || advisor)) {
-    const inst = institution ? institution.toUpperCase() : "UNIVERSIDADE";
-    const crs = course ? course.toUpperCase() : "";
-    const aut = studentName ? studentName.toUpperCase() : "NOME DO AUTOR";
+  if (requiresCoverAndTitlePage) {
+    const inst = institution ? institution.toUpperCase() : "INSTITUIÇÃO DE ENSINO SUPERIOR";
+    const crs = course ? course.toUpperCase() : "CURSO DE GRADUAÇÃO / PÓS-GRADUAÇÃO";
+    const aut = studentName ? studentName.toUpperCase() : "NOME DO(A) AUTOR(A)";
     const tit = cleanTitle.toUpperCase();
     const sub = subtitle ? `: ${subtitle}` : "";
-    const cid = city || "CIDADE";
+    const cid = city ? city.toUpperCase() : "CIDADE - UF";
     const an = year || String(currentYear);
+    const adv = advisor || "Prof. Dr. Orientador";
 
-    // Capa (Elemento Pré-Textual 1)
+    // 1. CAPA OFICIAL (Elemento Pré-Textual 1 - ABNT NBR 14724)
     prefixHeader = `${inst}
 ${crs}
 
@@ -191,7 +177,15 @@ ${an}
 
 `;
 
-    // Folha de Rosto (Elemento Pré-Textual 2)
+    // 2. FOLHA DE ROSTO / CONTRA-CAPA (Elemento Pré-Textual 2 - ABNT NBR 14724)
+    const presentationNote = documentType.includes("artigo")
+      ? `Artigo científico/acadêmico apresentado ao(à) ${inst}, como requisito de avaliação na área de ${course || "conhecimento acadêmico"}.`
+      : documentType === "projeto"
+      ? `Projeto de pesquisa apresentado ao(à) ${inst}, como requisito para qualificação e desenvolvimento do trabalho acadêmico.`
+      : documentType === "relatorio"
+      ? `Relatório técnico-científico apresentado ao(à) ${inst}, para comprovação e avaliação das atividades desenvolvidas.`
+      : `Trabalho de Conclusão de Curso apresentado ao(à) ${inst}, como requisito parcial para obtenção de grau em ${course || "Graduação"}.`;
+
     prefixHeader += `${aut}
 
 
@@ -199,8 +193,8 @@ ${an}
 ${tit}${sub}
 
 
-Trabalho de Conclusão de Curso apresentado ao(à) ${inst}${crs ? `, como requisito parcial para obtenção do título de Bacharel/Licenciado em ${course}` : " como requisito parcial de avaliação acadêmica"}.
-Orientador(a): ${advisor || "Prof. Orientador"}
+${presentationNote}
+Orientador(a): ${adv}
 
 
 
@@ -213,27 +207,28 @@ ${an}
 
 `;
 
-    // Folha de Aprovação (Template UNESP/USP opcional)
-    if (includeApprovalPage) {
+    // 3. Folha de Aprovação (se solicitada ou para Monografias)
+    if (includeApprovalPage || documentType === "monografia" || documentType === "trabalho_academico") {
       prefixHeader += `${aut}
 
 
 ${tit}${sub}
 
 
-Trabalho aprovado em ___/___/_____
+Trabalho aprovado em ___ de ____________ de ${an}.
 
 BANCA EXAMINADORA:
 
 ________________________________________
-${advisor || "Prof. Dr. Orientador"} (Presidente / Orientador)
+${adv} (Orientador(a))
 ${inst}
 
 ________________________________________
-Prof. Dr. Convidado 1
+Prof(a). Dr(a). Avaliador(a) 1
+${inst}
 
 ________________________________________
-Prof. Dr. Convidado 2
+Prof(a). Dr(a). Avaliador(a) 2
 
 
 ${cid}
@@ -243,73 +238,48 @@ ${an}
 
 `;
     }
-  } 
-  // 2. CABEÇALHO DE ARTIGO (ABNT NBR 6022 / DIRETRIZES USP)
-  else if (requiresArticleHeader) {
-    const aut = studentName ? studentName.trim() : "";
-    const aff = institution ? ` - ${institution.trim()}` : "";
-    const crs = course ? ` (${course.trim()})` : "";
-    const authorLine = aut ? `
-${aut}${crs}${aff}
-` : "";
-    prefixHeader = `${cleanTitle.toUpperCase()}${subtitle ? `: ${subtitle}` : ""}
-${authorLine}
-`;
-  }
-  // 3. RESENHA CRÍTICA
-  else if (documentType === "resenha") {
+  } else if (documentType === "resenha") {
     prefixHeader = `RESENHA CRÍTICA: ${cleanTitle.toUpperCase()}${subtitle ? `: ${subtitle}` : ""}
 ${studentName ? `Resenhista: ${studentName}
 ` : ""}
 `;
   }
 
-  // DIRETRIZES ESPECÍFICAS DE NORMALIZAÇÃO
+  // DIRETRIZES DO CORPO TEXTUAL
   let genreInstructions = "";
   if (documentType === "resumo") {
-    genreInstructions = `ESTRUTURA DE RESUMO / FICHAMENTO (ABNT NBR 6028 / USP):
-- REGRA ABSOLUTA: NÃO use Capa, NÃO use Folha de Rosto e NÃO use seções numeradas.
-- Escreva um texto em PARÁGRAFO ÚNICO contínuo e justificado (entre 150 e 500 palavras) expondo objetivo, metodologia, resultados fundamentais e conclusões.
-- No final, inclua obrigatoriamente: "Palavras-chave: [3 a 5 palavras separadas por ponto final]."`;
+    genreInstructions = `ESTRUTURA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
+- REGRA: NÃO use Capa nem Folha de Rosto.
+- Escreva em PARÁGRAFO ÚNICO contínuo e justificado (150 a 500 palavras) com objetivo, metodologia, resultados e conclusão.
+- Finalize com: "Palavras-chave: [3 a 5 palavras separadas por ponto final]."`;
   } else if (documentType === "redacao") {
     genreInstructions = `ESTRUTURA DE REDAÇÃO (PADRÃO ENEM NOTA 1000):
-- REGRA ABSOLUTA: NÃO use Capa nem Folha de Rosto.
-- Prosa contínua e dissertativa em 4 parágrafos: Introdução com tese, D1, D2 e Proposta de Intervenção com os 5 elementos (Agente, Ação, Meio, Efeito e Detalhamento).`;
-  } else if (documentType === "artigo" || documentType === "artigo_cientifico") {
-    genreInstructions = `ESTRUTURA DE ARTIGO CIENTÍFICO (ABNT NBR 6022 / NBR 10520:2023):
-- Inicie na 1ª página com RESUMO (100 a 250 palavras) e Palavras-chave.
-- Seções numeradas sequenciais na mesma página:
-  1 INTRODUÇÃO
-  2 FUNDAMENTAÇÃO TEÓRICA / METODOLOGIA
-  3 RESULTADOS E DISCUSSÃO
-  4 CONSIDERAÇÕES FINAIS
-  REFERÊNCIAS (NBR 6023)`;
-  } else if (documentType === "resenha") {
-    genreInstructions = `ESTRUTURA DE RESENHA CRÍTICA:
-- Seções: 1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO, 2 RESUMO DA OBRA, 3 APRECIAÇÃO CRÍTICA E ANÁLISE DE IMPACTO, 4 CONCLUSÃO.`;
+- REGRA: NÃO use Capa nem Folha de Rosto.
+- 4 parágrafos contínuos: Introdução com tese, Desenvolvimento 1, Desenvolvimento 2 e Proposta de Intervenção completa.`;
   } else {
-    genreInstructions = `ESTRUTURA DE TRABALHO ACADÊMICO COMPLETO (ABNT NBR 14724 / TEMPLATES UNESP & USP):
-- RESUMO em português (NBR 6028) com 150 a 500 palavras e Palavras-chave.
-${includeAbstract ? "- ABSTRACT em inglês com Keywords correspondentes.\n" : ""}- SUMÁRIO (NBR 6027) com as seções principais numeradas.
-- 1 INTRODUÇÃO (Problematização, hipóteses, objetivos geral e específicos e justificativa).
-- 2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO
-- 2.1 Análise das Dimensões Metodológicas
-- 2.2 Desdobramentos e Confronto com a Literatura
-- 3 CONSIDERAÇÕES FINAIS (Síntese dos achados, contribuições e perspectivas futuras).
+    genreInstructions = `ESTRUTURA ACADÊMICA ABNT COMPLETA (NBR 14724 & NBR 6022):
+- RESUMO em português (150 a 250 palavras) e Palavras-chave.
+- ABSTRACT em inglês correspondente e Keywords.
+- SUMÁRIO com as seções numeradas.
+- 1 INTRODUÇÃO (Problematização, hipótese, objetivos e relevância).
+- 2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA
+- 2.1 Análise das Dimensões Estruturais
+- 3 RESULTADOS E DISCUSSÃO
+- 4 CONSIDERAÇÕES FINAIS (Conclusão e perspectivas)
 - REFERÊNCIAS (NBR 6023 em ordem alfabética).`;
   }
 
   const systemPrompt = `Você é um assistente acadêmico e normalizador sênior especializado nas normas da ABNT e diretrizes das bibliotecas UNESP e USP.
-Elabore um(a) ${selectedTypeName} rigoroso(a), profundo(a), técnico(a) e formal sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
-${prompt ? `Diretrizes adicionais: ${prompt}` : ""}
+Elabore um(a) ${selectedTypeName} completo(a), profundo(a), rigoroso(a) e com alto nível acadêmico sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
+${prompt ? `Diretrizes adicionais do usuário: ${prompt}` : ""}
 
 ${genreInstructions}
 
-NORMAS DE CITAÇÃO E REFERÊNCIA OBRIGATÓRIAS:
-1. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Exemplo: (Silva, 2023, p. 45) ou "Conforme Almeida (2022)...". NUNCA use caixa alta integral como (SILVA, 2023).
-2. REFERÊNCIAS (ABNT NBR 6023): Todas as referências devem ser completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
-3. FLUIDEZ E BURSTINESS: Texto rico, sem clichês de IA (evite "Em suma", "Vale ressaltar", "No cenário hodierno").
-4. Formato puro: Não use saudações nem avisos.`;
+NORMAS OBRIGATÓRIAS:
+1. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
+2. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
+3. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
+4. Formato limpo: Sem saudações ou comentários externos.`;
 
   try {
     const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
@@ -318,10 +288,10 @@ NORMAS DE CITAÇÃO E REFERÊNCIA OBRIGATÓRIAS:
       return prefixHeader + normalized;
     }
   } catch (err) {
-    console.warn("Chamada direta Gemini falhou, ativando gerador de contingência:", err);
+    console.warn("Chamada direta Gemini falhou, usando gerador determinístico:", err);
   }
 
-  // CONTINGÊNCIA DETERMINÍSTICA ABNT 2023
+  // CONTINGÊNCIA DETERMINÍSTICA
   if (documentType === "resumo") {
     return `RESUMO
 O presente estudo analisa as configurações conceituais e empíricas concernentes a ${cleanTopic}. Por meio de uma abordagem qualitativa de caráter exploratório, o trabalho articula referências contemporâneas para identificar os desafios e as potencialidades da área. Os resultados atestam a relevância da parametrização metodológica e do rigor científico na resolução dos problemas investigados. Conclui-se que o fortalecimento das práticas reflexivas constitui elemento essencial para a consolidação do saber acadêmico.
@@ -339,22 +309,50 @@ Ademais, a negligência educacional atua como força mantenedora do problema. Se
 Infere-se, portanto, a urgência de intervenções coordenadas para transformar esse cenário. Compete ao Governo Federal, em cooperação com os Ministérios competentes e veículos de comunicação, instituir um Programa Nacional de Fortalecimento e Conscientização sobre ${cleanTopic}, por meio da alocação de recursos orçamentários específicos e da realização de oficinas formativas em escolas e comunidades. Essa medida visa qualificar os cidadãos e fomentar soluções sustentáveis. Somente assim, consolidar-se-á uma sociedade plenamente equânime e consciente.`;
   }
 
-  // Padrão estruturado de contingência para Artigos e Monografias
-  const intro = `A emergência e a consolidação das discussões relativas a ${cleanTopic} representam um dos debates mais profícuos no cenário acadêmico contemporâneo. Segundo as reflexões de Santos (2023), a investigação rigorosa desse fenômeno exige a superação de leituras superficiais e a articulação harmoniosa entre fundamentação teórica e aplicabilidade prática. O objetivo deste trabalho é analisar criticamente os fundamentos estruturais que regem essa temática, fornecendo subsídios consistentes para a comunidade científica.`;
+  const preTextualBody = `RESUMO
+O presente trabalho investiga as dinâmicas teóricas e práticas concernentes a ${cleanTopic}. Com base em uma abordagem metodológica qualitativa e exploratória, realizou-se uma revisão bibliográfica sistemática com o fito de analisar os principais desafios e avanços na área. Os resultados evidenciam que a sistematização e o rigor normativo potencializam a qualidade e o impacto dos achados científicos. Conclui-se que o aprofundamento das reflexões teóricas permanece basilar para a inovação acadêmica.
 
-  const dev = `2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO DOS RESULTADOS
+Palavras-chave: ${cleanTopic}. Normalização Documentária. Metodologia da Pesquisa. Produção Científica.
+
+--- [QUEBRA DE PÁGINA] ---
+
+ABSTRACT
+This study investigates the theoretical and practical dynamics concerning ${cleanTopic}. Based on a qualitative and exploratory methodological approach, a systematic literature review was conducted to analyze the primary challenges and advancements in the field. The findings indicate that systematization and normative rigor significantly enhance the quality and impact of scientific discoveries. It is concluded that continuous critical reflection remains essential for academic innovation.
+
+Keywords: ${cleanTopic}. Document Standardization. Research Methodology. Scientific Production.
+
+--- [QUEBRA DE PÁGINA] ---
+
+SUMÁRIO
+
+1 INTRODUÇÃO ............................................................................................ 4
+2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA .......................................... 5
+2.1 Análise das Dimensões Estruturais ....................................................... 6
+3 RESULTADOS E DISCUSSÃO ....................................................................... 7
+4 CONSIDERAÇÕES FINAIS .......................................................................... 8
+REFERÊNCIAS .............................................................................................. 9
+
+--- [QUEBRA DE PÁGINA] ---
+
+`;
+
+  const intro = `1 INTRODUÇÃO
+
+A emergência e a consolidação das discussões relativas a ${cleanTopic} representam um dos debates mais profícuos no cenário acadêmico contemporâneo. Segundo as reflexões de Santos (2023), a investigação rigorosa desse fenômeno exige a superação de leituras superficiais e a articulação harmoniosa entre fundamentação teórica e aplicabilidade prática. O objetivo deste trabalho é analisar criticamente os fundamentos estruturais que regem essa temática, fornecendo subsídios consistentes para a comunidade científica.`;
+
+  const dev = `2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA
 
 A literatura especializada demonstra que o estudo de ${cleanTopic} está intrinsecamente associado à evolução das diretrizes metodológicas modernas (Oliveira; Ferreira, 2022). A aplicação de modelos analíticos estruturados confere solidez às conclusões, mitigando vieses interpretativos e assegurando a replicabilidade das abordagens.
 
-2.1 Dimensões Analíticas e Normativas
+2.1 Análise das Dimensões Estruturais
 
 Conforme ressaltam Silva e Almeida (2023, p. 58), a padronização e o rigor metodológico não constituem meras exigências formais, mas salvaguardas essenciais para a validade do conhecimento produzido. A observância dessas diretrizes possibilita comparações sistemáticas e avanços epistemológicos contínuos.
 
-2.2 Análise Crítica dos Dados e Implicações Práticas
+3 RESULTADOS E DISCUSSÃO
 
 Os dados compilados evidenciam que a sistematização criteriosa de ${cleanTopic} potencializa a eficiência dos processos decisórios. Os resultados alcançados corroboram a hipótese de que o alinhamento normativo e a profundidade analítica atuam sinergicamente na geração de impacto científico relevante.`;
 
-  const conc = `3 CONSIDERAÇÕES FINAIS
+  const conc = `4 CONSIDERAÇÕES FINAIS
 
 Em consonância com as metas estabelecidas, esta pesquisa demonstrou que ${cleanTopic} se configura como um eixo indispensável para o desenvolvimento científico contemporâneo. Os resultados apresentados cumprem o propósito de esclarecer aspectos fundamentais da temática, ao mesmo tempo em que apontam lacunas férteis para investigações futuras.`;
 
@@ -372,9 +370,7 @@ SANTOS, Rafael. Inovações e Diretrizes na Produção Acadêmica Contemporânea
 
 SILVA, Mariana; ALMEIDA, Lucas. Rigor Metodológico e Normalização Documentária. Revista Brasileira de Ensino e Pesquisa, v. 18, n. 2, p. 45-62, ${currentYear - 2}.`;
 
-  return prefixHeader + `1 INTRODUÇÃO
-
-${intro}
+  return prefixHeader + preTextualBody + `${intro}
 
 ${dev}
 

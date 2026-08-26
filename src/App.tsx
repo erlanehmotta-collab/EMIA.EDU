@@ -2058,7 +2058,7 @@ ${latexChapters}
             {(activeTab === "editor" || activeTab === "generator") && (
               <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
                 {(() => {
-                  const requiresFormalCover = ["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType);
+                  const requiresFormalCover = !["resumo", "redacao", "resenha"].includes(documentType);
                   let pages: string[] = [];
                   
                   if (generatedText && generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
