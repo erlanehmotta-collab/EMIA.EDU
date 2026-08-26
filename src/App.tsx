@@ -165,6 +165,88 @@ export default function App() {
   };
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
+  const [customGeminiKey, setCustomGeminiKey] = useState<string>(() => localStorage.getItem("emia_custom_gemini_key") || "");
+  const [googleUser, setGoogleUser] = useState<{ name?: string; email?: string; picture?: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem("emia_google_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const getApiHeaders = () => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (customGeminiKey && customGeminiKey.trim()) {
+      headers["x-gemini-api-key"] = customGeminiKey.trim();
+    }
+    const token = localStorage.getItem("emia_google_token");
+    if (token) {
+      headers["authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const handleGoogleLogin = () => {
+    // Integração oficial com Google Identity Services (GIS)
+    if (typeof window !== "undefined" && (window as any).google?.accounts?.oauth2) {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: "679803159932-emia-google-app.apps.googleusercontent.com",
+        scope: "openid email profile https://www.googleapis.com/auth/generative-language",
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse?.access_token) {
+            try {
+              const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+              });
+              const userInfo = await userInfoRes.json();
+              const userEmail = (userInfo.email || "").toLowerCase();
+              
+              setGoogleUser({ name: userInfo.name, email: userEmail, picture: userInfo.picture });
+              localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
+              localStorage.setItem("emia_google_token", tokenResponse.access_token);
+              
+              if (userEmail === "erlane.digital@gmail.com") {
+                setIsMaster(true);
+                setCredits(9999);
+                localStorage.setItem("emia_is_master", "true");
+              } else {
+                setIsMaster(false);
+              }
+              
+              setIsAuthenticated(true);
+              localStorage.setItem("emia_authenticated", "true");
+              localStorage.setItem("emia_user_email", userEmail);
+              logAction(`Login oficial via Google realizado (${userEmail})`);
+            } catch (e) {
+              console.error("Erro ao autenticar com Google:", e);
+            }
+          }
+        },
+      });
+      client.requestAccessToken();
+    } else {
+      const email = prompt("Conectar com a Conta Google:\nInforme o seu e-mail do Google:");
+      if (email && email.trim()) {
+        const clean = email.trim().toLowerCase();
+        setGoogleUser({ name: clean.split("@")[0], email: clean });
+        localStorage.setItem("emia_google_user", JSON.stringify({ email: clean, name: clean.split("@")[0] }));
+        if (clean === "erlane.digital@gmail.com") {
+          setIsMaster(true);
+          setCredits(9999);
+          localStorage.setItem("emia_is_master", "true");
+        } else {
+          setIsMaster(false);
+          setShowPixModal(true);
+        }
+        setIsAuthenticated(true);
+        localStorage.setItem("emia_authenticated", "true");
+        localStorage.setItem("emia_user_email", clean);
+        logAction(`Login com Conta Google (${clean}) realizado`);
+      }
+    }
+  };
+
   const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanEmail = loginEmail.trim().toLowerCase();
@@ -199,8 +281,11 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsMaster(false);
+    setGoogleUser(null);
     localStorage.removeItem("emia_authenticated");
     localStorage.removeItem("emia_is_master");
+    localStorage.removeItem("emia_google_user");
+    localStorage.removeItem("emia_google_token");
   };
 
   if (!isAuthenticated) {
@@ -213,8 +298,34 @@ export default function App() {
             </div>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
             <p className="text-gray-600 mt-1 text-xs">
-              Gerador, formatador ABNT e validador de trabalhos acadêmicos com IA Humanizada.
+              Assistente Acadêmico PWA • Formatação ABNT NBR 14724 & IA Gemini Humanizada
             </p>
+          </div>
+
+          {/* BOTÃO OFICIAL DE LOGIN COM GOOGLE IDENTITY SERVICES */}
+          <div className="mb-5">
+            <button
+              onClick={handleGoogleLogin}
+              type="button"
+              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-semibold py-3 px-4 rounded-xl shadow-sm transition-all text-sm group"
+            >
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Conectar com Conta Google</span>
+            </button>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-gray-400 font-medium">ou acesse com e-mail</span>
+              </div>
+            </div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -275,9 +386,10 @@ export default function App() {
   }
 
   const handleGenerate = async () => {
-    if (credits <= 0) {
+    const hasOwnQuota = !!customGeminiKey || !!googleUser;
+    if (credits <= 0 && !isMaster && !hasOwnQuota) {
       setShowPixModal(true);
-      setErrorMessage("Seus créditos acabaram! Adquira o pacote de 5 trabalhos via PIX direto para continuar.");
+      setErrorMessage("Seus créditos acabaram! Adquira o pacote de 5 trabalhos via PIX direto ou conecte sua própria Conta Google / Chave Gemini.");
       return;
     }
 
@@ -301,8 +413,18 @@ export default function App() {
         files.forEach(f => formData.append("files", f));
       }
 
+      const customHeaders: Record<string, string> = {};
+      if (customGeminiKey && customGeminiKey.trim()) {
+        customHeaders["x-gemini-api-key"] = customGeminiKey.trim();
+      }
+      const token = localStorage.getItem("emia_google_token");
+      if (token) {
+        customHeaders["authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch("/api/generate", {
         method: "POST",
+        headers: customHeaders,
         body: formData,
       });
       const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
@@ -310,11 +432,13 @@ export default function App() {
         setGeneratedText(data.text);
         setActiveTab("editor");
         logAction(`Geração de documento: ${title || documentType}`, data.text);
-        setCredits(prev => {
-          const next = Math.max(0, prev - 1);
-          localStorage.setItem("emia_credits", String(next));
-          return next;
-        });
+        if (!isMaster && !hasOwnQuota) {
+          setCredits(prev => {
+            const next = Math.max(0, prev - 1);
+            localStorage.setItem("emia_credits", String(next));
+            return next;
+          });
+        }
       } else {
         setErrorMessage(data.error);
       }
@@ -422,7 +546,7 @@ export default function App() {
     try {
       const res = await fetch("/api/humanize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getApiHeaders(),
         body: JSON.stringify({ text: targetText }),
       });
       const textData = await res.text(); 
@@ -456,7 +580,7 @@ export default function App() {
     try {
       const res = await fetch("/api/check-authenticity", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getApiHeaders(),
         body: JSON.stringify({ text: generatedText }),
       });
       const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
@@ -480,7 +604,7 @@ export default function App() {
     try {
       const res = await fetch("/api/generate-cover", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getApiHeaders(),
         body: JSON.stringify({ 
           text: generatedText, 
           title: title || "TRABALHO ACADÊMICO",
@@ -643,7 +767,7 @@ export default function App() {
     try {
       const res = await fetch("/api/improve-text", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getApiHeaders(),
         body: JSON.stringify({ text: targetText, rules: formatRules }),
       });
       const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
@@ -685,7 +809,7 @@ export default function App() {
         try {
           const res = await fetch("/api/csv-to-table", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getApiHeaders(),
             body: JSON.stringify({ csvData: content }),
           });
           const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
@@ -723,7 +847,7 @@ export default function App() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getApiHeaders(),
         body: JSON.stringify({ 
           message: userMessage, 
           history: chatHistory,
@@ -1458,18 +1582,113 @@ export default function App() {
                 onClick={() => setProfileTab('dados')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${profileTab === 'dados' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
-                Meus Dados (Preenchimento Automático)
+                Meus Dados (Capa ABNT)
+              </button>
+              <button 
+                onClick={() => setProfileTab('gemini')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${profileTab === 'gemini' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                🔑 Conta Google & Chave Gemini
               </button>
               <button 
                 onClick={() => setProfileTab('historico')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${profileTab === 'historico' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
-                Histórico de Textos Gerados
+                Histórico de Textos
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {profileTab === 'dados' ? (
+              {profileTab === 'gemini' && (
+                <div className="space-y-5">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h4 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      Uso de Cota Própria do Google Gemini
+                    </h4>
+                    <p className="text-xs text-blue-700">
+                      Conecte sua conta do Google ou insira sua chave da API do Google AI Studio / Google Cloud. Ao usar sua própria cota, o uso é 100% ilimitado e não consome créditos!
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">Status da Conta Google</label>
+                    {googleUser ? (
+                      <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs uppercase">
+                            {googleUser.name?.charAt(0) || "G"}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">{googleUser.name || "Usuário Google"}</p>
+                            <p className="text-xs text-gray-500">{googleUser.email}</p>
+                          </div>
+                        </div>
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Conectado</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleGoogleLogin}
+                        type="button"
+                        className="w-full flex items-center justify-center gap-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-4 rounded-xl text-xs shadow-sm transition-all"
+                      >
+                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                        </svg>
+                        <span>Conectar Conta Google</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">Chave da API Gemini (Google AI Studio)</label>
+                    <input 
+                      type="password"
+                      value={customGeminiKey}
+                      onChange={(e) => setCustomGeminiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      Obtenha sua chave gratuita em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline font-medium">aistudio.google.com</a>.
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100 flex justify-end gap-2">
+                    {customGeminiKey && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setCustomGeminiKey("");
+                          localStorage.removeItem("emia_custom_gemini_key");
+                          setErrorMessage("Chave personalizada removida.");
+                        }}
+                        className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
+                      >
+                        Remover Chave
+                      </Button>
+                    )}
+                    <Button 
+                      size="sm"
+                      onClick={() => {
+                        localStorage.setItem("emia_custom_gemini_key", customGeminiKey.trim());
+                        setShowProfileModal(false);
+                        setErrorMessage("Configurações da Conta Google e Gemini salvas!");
+                        setTimeout(() => setErrorMessage(""), 3500);
+                      }} 
+                      className="bg-blue-600 text-xs"
+                    >
+                      <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar Configurações
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {profileTab === 'dados' && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 mb-6">
                     Salve seus dados padrão. Eles serão preenchidos automaticamente na "Capa ABNT" e inseridos no cabeçalho e rodapé dos novos trabalhos.
@@ -1533,7 +1752,9 @@ export default function App() {
                     </Button>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {profileTab === 'historico' && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 mb-6">
                     Abaixo está o registro de todos os textos gerados, formatados e humanizados durante os últimos 7 dias. Este banco de dados é controlado automaticamente para economizar espaço no seu navegador.

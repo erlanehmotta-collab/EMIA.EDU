@@ -6,7 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const defaultAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const upload = multer({ storage: multer.memoryStorage() });
 
 async function startServer() {
@@ -16,18 +16,29 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-  // Helper to call Gemini
-  async function generateFromText(prompt: string, maxRetries = 5, isDocument = true) {
+  // Helper to dynamically get Google GenAI client (User quota or System quota)
+  function getClientAi(req?: express.Request) {
+    if (!req) return defaultAi;
+    const userApiKey = (req.headers["x-gemini-api-key"] as string) || (req.headers["x-google-api-key"] as string) || (req.headers["authorization"] ? req.headers["authorization"].replace(/^Bearer\s+/i, '') : undefined);
+    if (userApiKey && userApiKey.trim()) {
+      return new GoogleGenAI({ apiKey: userApiKey.trim() });
+    }
+    return defaultAi;
+  }
+
+  // Helper to call Gemini with automatic fallback / retries
+  async function generateFromText(prompt: string, req?: express.Request, maxRetries = 5, isDocument = true) {
     const personaDirective = `\n\nDIRETRIZ DE IDENTIDADE E PAPEL:\n- Atue como um redator e editor acadêmico e científico.\n- Crie textos de alta qualidade mantendo um tom formal e rigoroso.\n- Analise textos para detectar a presença de plágio e verificar se foram gerados ou não por inteligência artificial quando solicitado.\n- Se necessário e apropriado para o contexto, gere tabelas e imagens para enriquecer o conteúdo e a compreensão do texto.\n- Permita e processe o texto inserido ou enviado pelo usuário para verificação de plágio e opções de humanização de forma precisa.`;
     const strictConstraint = "\n\nIMPORTANTE: Não inclua frases introdutórias, cabeçalhos ou rodapés no resultado. Retorne apenas o conteúdo gerado. NÃO utilize formatação Markdown (remova asteriscos **, hashtags #, etc). Entregue o resultado em texto limpo, como se tivesse sido escrito por um humano em um editor de texto comum. Garanta que o documento gerado mantenha uma formatação e layout impecáveis, idênticos aos de um arquivo criado no Microsoft Word, sem inserção textual de marcações de 'quebra de página' visíveis na impressão final.\n\nDIRETRIZ PERMANENTE: Nunca invente informações. Todas as informações utilizadas para criar textos devem ser buscadas e verificadas em fontes seguras e confiáveis. Para consultas baseadas em documentos específicos, como a constituição ou um texto base enviado, limite a geração de respostas estritamente às informações contidas no documento fornecido ou referenciado, sem extrapolações.\n\nDIRETRIZ DE CONHECIMENTO FATUAL: Baseie suas respostas em fatos e conhecimento factual, consultando fontes externas confiáveis ou conhecimento atualizado, sem gerar suposições.";
     const chatConstraint = "\n\nIMPORTANTE: Responda diretamente e de forma clara, utilizando formatação em Markdown (como negrito, listas e blocos de código) para facilitar a leitura. Seja prestativo e ajude a esclarecer dúvidas ou refinar o texto.";
     
     const finalPrompt = prompt + personaDirective + (isDocument ? strictConstraint : chatConstraint);
+    const client = getClientAi(req);
 
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const response = await ai.models.generateContent({
+        const response = await client.models.generateContent({
           model: "gemini-3.6-flash",
           contents: finalPrompt,
         });
