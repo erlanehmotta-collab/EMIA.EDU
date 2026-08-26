@@ -328,24 +328,27 @@ Texto original:\n${text}`;
 
   app.post("/api/generate-cover", async (req, res) => {
     try {
-      const { text, title } = req.body;
-      const instruction = `Com base no texto a seguir (ou no tema: ${title || 'Não informado'}), crie a folha de Capa perfeitamente alinhada e formatada contendo TODOS os elementos obrigatórios exigidos pelas normas da ABNT.
-      NOTA: Não crie ou sugira o uso de imagens de capa (as normas da ABNT não permitem imagens na capa de trabalhos acadêmicos). Gere exclusivamente os elementos textuais obrigatórios.
+      const { text, title, subtitle, studentName, institution, course, city, year, advisor, documentType } = req.body;
       
-      Elementos obrigatórios que devem ser gerados, centralizados na página:
-      [NOME DA INSTITUIÇÃO] (no topo)
-      [NOME DO AUTOR]
+      const instName = (institution || "NOME DA INSTITUIÇÃO DE ENSINO").toUpperCase();
+      const courseName = course ? course.toUpperCase() : "";
+      const authorName = (studentName || "NOME DO AUTOR DO TRABALHO").toUpperCase();
+      const docTitle = (title || "TÍTULO DO TRABALHO ACADÊMICO").toUpperCase();
+      const docSubtitle = subtitle ? ` - ${subtitle}` : "";
+      const docCity = (city || "CIDADE - UF").toUpperCase();
+      const docYear = year || new Date().getFullYear().toString();
+      const docType = documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO";
+      const advText = advisor ? `Orientador(a): ${advisor}` : "";
+
+      // CAPA ABNT NBR 14724 (Folha A4)
+      const coverPage = `${instName}${courseName ? `\n${courseName}` : ""}\n\n\n\n${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+
+      // FOLHA DE ROSTO ABNT NBR 14724 (Folha A4)
+      const titlePage = `${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n                                          ${docType} apresentado à ${instName}${courseName ? ` como requisito parcial de avaliação para o curso de ${courseName}` : ""}.\n${advText ? `\n                                          ${advText}` : ""}\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+
+      const fullCover = `${coverPage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${titlePage}\n\n--- [QUEBRA DE PÁGINA] ---`;
       
-      [TÍTULO DO TRABALHO EM DESTAQUE E MAIÚSCULAS]
-      [SUBTÍTULO - se houver, em minúsculas]
-      
-      [CIDADE / LOCAL] (na parte inferior)
-      [ANO DE ENTREGA] (na parte inferior)
-      
-      Retorne APENAS o texto da capa formatado com quebras de linha para simular os espaços corretos. Nenhuma outra mensagem.\n\nTexto/Tema:\n${text ? text.substring(0, 3000) : "Sem texto"}`;
-      
-      const coverText = await generateFromText(instruction);
-      res.json({ success: true, text: coverText });
+      res.json({ success: true, text: fullCover });
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao gerar capa" });

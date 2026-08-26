@@ -443,11 +443,28 @@ export default function App() {
       const res = await fetch("/api/generate-cover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: generatedText, title: title }),
+        body: JSON.stringify({ 
+          text: generatedText, 
+          title: title || "TRABALHO ACADÊMICO",
+          subtitle,
+          studentName,
+          institution,
+          course,
+          city,
+          year,
+          advisor,
+          documentType: documentType === "outros" ? customDocumentType : documentType
+        }),
       });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+      const textData = await res.text(); 
+      let data; 
+      try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}).`); }
       if (data.success) {
-        setGeneratedText(data.text + "\n\n--- [NOVA PÁGINA] ---\n\n" + generatedText);
+        // Se o documento já tem capa anterior, substitui, caso contrário adiciona no início
+        const cleanBody = generatedText.replace(/^.*--- \[(?:QUEBRA DE PÁGINA|NOVA PÁGINA)\] ---\n*/is, '');
+        setGeneratedText(data.text + "\n\n" + (cleanBody || generatedText));
+        setActiveTab("editor");
+        logAction("Capa e Folha de Rosto ABNT (Folha A4) geradas com sucesso");
       } else {
         setErrorMessage(data.error);
       }
@@ -666,53 +683,101 @@ export default function App() {
 
   const exportPDF = () => {
     if (!generatedText) return;
-    const doc = new jsPDF({ format: 'a4' });
+    const doc = new jsPDF({ 
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    });
     
     doc.setFont("times", "normal");
     doc.setFontSize(12);
     
+    const marginLeft = 30; // 3cm
+    const marginTop = 30;  // 3cm
+    const marginRight = 20; // 2cm
+    const marginBottom = 20; // 2cm
+    const printableWidth = 210 - marginLeft - marginRight; // 160mm
+    const maxY = 297 - marginBottom; // 277mm
+    const lineHeight = 7.5; // Espaçamento 1.5 para fonte 12pt
+    
     const paragraphs = generatedText.split('\n');
-    let cursorY = 20;
+    let cursorY = marginTop;
+    let isCoverPage = true;
     
     paragraphs.forEach((paragraph) => {
       if (paragraph.includes("--- [QUEBRA DE PÁGINA] ---") || paragraph.includes("--- [NOVA PÁGINA] ---") || paragraph.match(/---\s*\[Página.*?\]\s*---/i)) {
         doc.addPage();
-        cursorY = 20;
+        cursorY = marginTop;
+        isCoverPage = false;
         return;
       }
       
-      const lines = doc.splitTextToSize(paragraph, 170);
-      lines.forEach((line: string) => {
-        if (cursorY > 280) {
+      if (!paragraph.trim()) {
+        cursorY += lineHeight * 0.8;
+        if (cursorY > maxY) {
           doc.addPage();
-          cursorY = 20;
+          cursorY = marginTop;
         }
-        doc.text(line, 20, cursorY);
-        cursorY += 7;
+        return;
+      }
+
+      const lines = doc.splitTextToSize(paragraph, printableWidth);
+      lines.forEach((line: string) => {
+        if (cursorY > maxY) {
+          doc.addPage();
+          cursorY = marginTop;
+        }
+        
+        // Se estiver na capa e for linha de título/instituição, centraliza
+        const isCentered = isCoverPage || /^[A-Z0-9\sÁÉÍÓÚÀÈÌÒÙÃÕÂÊÎÔÛÇ]{4,}$/.test(line.trim());
+        if (isCentered && isCoverPage) {
+          doc.text(line, 105, cursorY, { align: "center" });
+        } else {
+          doc.text(line, marginLeft, cursorY);
+        }
+        cursorY += lineHeight;
       });
     });
 
-    doc.save("trabalho-abnt.pdf");
+    doc.save("trabalho-abnt-a4.pdf");
   };
 
   const exportWord = async () => {
     if (!generatedText) return;
+    
+    let isCover = true;
     const paragraphs = generatedText.split('\n').map(text => {
-        // Ignora linhas vazias desnecessárias se estiver apenas dividindo, mas ABNT preserva espaços às vezes.
-        // Se a linha for o marcador de quebra, gerar quebra de página
+        const clean = text.trim();
         if (text.includes("--- [QUEBRA DE PÁGINA] ---") || text.includes("--- [NOVA PÁGINA] ---") || text.match(/---\s*\[Página.*?\]\s*---/i)) {
+            isCover = false;
             return new Paragraph({
                 pageBreakBefore: true,
                 children: [],
             });
         }
         
-        // Formatação exata ABNT
+        // Linhas em branco
+        if (!clean) {
+          return new Paragraph({
+            children: [new TextRun({ text: "", font: "Arial", size: 24 })],
+            spacing: { line: 360 }
+          });
+        }
+
+        const isCentered = isCover || (/^[A-Z0-9\sÁÉÍÓÚÀÈÌÒÙÃÕÂÊÎÔÛÇ]{4,}$/.test(clean) && isCover);
+        const isRightNature = clean.startsWith("Trabalho") || clean.startsWith("Orientador") || clean.startsWith("Monografia") || clean.startsWith("Artigo");
+
+        // Formatação rigorosa ABNT NBR 14724 em folha A4
         return new Paragraph({
-            children: [new TextRun({ text: text, font: "Arial", size: 24 })], // size 24 = 12pt
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { line: 360 }, // 1.5 spacing
-            indent: { firstLine: convertMillimetersToTwip(12.5) } // 1.25cm recuo primeira linha
+            children: [new TextRun({ 
+              text: text, 
+              font: "Arial", 
+              size: isRightNature ? 20 : 24, // 10pt para nota de natureza, 12pt para texto
+              bold: isCover && (clean.length > 20 || clean === clean.toUpperCase())
+            })],
+            alignment: isCentered ? AlignmentType.CENTER : (isRightNature ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED),
+            spacing: { line: isRightNature ? 240 : 360 }, // 1.0 simples para notas, 1.5 para o corpo
+            indent: isCentered || isRightNature ? { firstLine: 0 } : { firstLine: convertMillimetersToTwip(12.5) } // 1.25cm recuo
         });
     });
 
@@ -720,11 +785,15 @@ export default function App() {
       sections: [{
         properties: {
             page: {
+                size: {
+                  width: convertMillimetersToTwip(210), // Folha A4 210mm
+                  height: convertMillimetersToTwip(297) // Folha A4 297mm
+                },
                 margin: {
-                    top: convertMillimetersToTwip(30), // 3cm
-                    left: convertMillimetersToTwip(30), // 3cm
-                    right: convertMillimetersToTwip(20), // 2cm
-                    bottom: convertMillimetersToTwip(20), // 2cm
+                    top: convertMillimetersToTwip(30), // Margem Superior 3cm
+                    left: convertMillimetersToTwip(30), // Margem Esquerda 3cm
+                    right: convertMillimetersToTwip(20), // Margem Direita 2cm
+                    bottom: convertMillimetersToTwip(20), // Margem Inferior 2cm
                 }
             }
         },
@@ -733,7 +802,7 @@ export default function App() {
     });
 
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, "trabalho-abnt.docx");
+    saveAs(blob, "trabalho-abnt-a4.docx");
   };
 
   const handleNewWork = () => {
