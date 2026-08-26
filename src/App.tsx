@@ -4,8 +4,11 @@ import {
   FileText, Upload, Plus, CheckCircle, FileDown, 
   Settings, Loader2, LogOut, ShieldCheck, Download, Copy,
   UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
-  User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode, Printer
+  User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode, Printer,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut, Maximize2, Minimize2,
+  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2
 } from "lucide-react";
+import pptxgen from "pptxgenjs";
 import ReactMarkdown from "react-markdown";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip, Header, PageNumber } from "docx";
@@ -112,6 +115,31 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<"generator" | "editor" | "report" | "chat">("generator");
   const [editorMode, setEditorMode] = useState<"a4" | "raw">("a4");
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+  const [viewLayout, setViewLayout] = useState<"book" | "continuous">("book");
+  const [zoomScale, setZoomScale] = useState<number>(85); // 85% permite ver a folha A4 inteira em qualquer monitor
+  const [isStageExpanded, setIsStageExpanded] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [showSlidesModal, setShowSlidesModal] = useState<boolean>(false);
+  const [slidesTheme, setSlidesTheme] = useState<"academic" | "modern" | "dark">("academic");
+
+  // Sincroniza atalhos de teclado (Seta Esquerda / Direita) para passar páginas estilo livro
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignora se estiver digitando em campos de texto
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
+        return;
+      }
+      const pagesCount = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---").length : 1;
+      if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        setCurrentPageIndex(prev => Math.max(0, prev - 1));
+      } else if (e.key === "ArrowRight" || e.key === "PageDown") {
+        setCurrentPageIndex(prev => Math.min(pagesCount - 1, prev + 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [generatedText]);
 
   const logAction = (actionDesc: string, content?: string) => {
     setAuditLogs(prev => {
@@ -1023,6 +1051,218 @@ export default function App() {
     saveAs(blob, "trabalho-abnt-a4.docx");
   };
 
+  // Função para Estruturar o Texto Acadêmico em Roteiro de Slides
+  const parseDocumentIntoSlides = (text: string) => {
+    const pages = text ? text.split("--- [QUEBRA DE PÁGINA] ---") : [];
+    const mainBody = pages.slice(2).join("\n\n") || text;
+
+    return [
+      {
+        title: (title || "Apresentação de Trabalho Acadêmico").toUpperCase(),
+        subtitle: subtitle || (course ? `Curso de ${course}` : "Seminário & Defesa"),
+        author: studentName || "Autor(a)",
+        institution: institution || "Instituição de Ensino",
+        year: year || new Date().getFullYear().toString(),
+        isCover: true,
+        bullets: [
+          `Autor: ${studentName || "Acadêmico"}`,
+          `Orientador: ${advisor || "Docente Responsável"}`,
+          `Instituição: ${institution || "Universidade / Faculdade"}`,
+          `Ano: ${year || new Date().getFullYear()}`
+        ],
+        notes: "Slide inicial: Agradeça à banca examinadora e apresente o título do seu trabalho."
+      },
+      {
+        title: "1. Introdução e Contextualização",
+        isCover: false,
+        bullets: [
+          "Relevância e atualidade do tema no cenário acadêmico contemporâneo.",
+          "Justificativa da pesquisa e motivação teórica/prática.",
+          "Delimitação do escopo e contextualização do problema investigado.",
+          "Aderência às diretrizes e estado da arte da literatura."
+        ],
+        notes: "Destaque por que esse tema é importante e o que motivou a realização desta pesquisa."
+      },
+      {
+        title: "2. Problema de Pesquisa & Objetivos",
+        isCover: false,
+        bullets: [
+          "Problema Central: Como solucionar ou analisar o fenômeno proposto?",
+          "Objetivo Geral: Investigar, mapear e analisar criticamente as variáveis.",
+          "Objetivos Específicos: Levantar referencial, aplicar metodologia e analisar dados.",
+          "Hipótese condutora do estudo e impacto esperado."
+        ],
+        notes: "Apresente a pergunta norteadora e deixe claro o objetivo que você buscou alcançar."
+      },
+      {
+        title: "3. Fundamentação Teórica & Metodologia",
+        isCover: false,
+        bullets: [
+          "Bases conceituais fundamentadas em autores e referências consolidadas.",
+          "Abordagem metodológica: Classificação (Qualitativa / Quantitativa).",
+          "Procedimentos de coleta e análise sistemática dos dados.",
+          "Critérios de rigor científico e conformidade normativa ABNT."
+        ],
+        notes: "Explique como o estudo foi conduzido metodologicamente e quais autores apoiaram a teoria."
+      },
+      {
+        title: "4. Desenvolvimento & Principais Achados",
+        isCover: false,
+        bullets: [
+          "Apresentação dos principais resultados obtidos na investigação.",
+          "Discussão crítica correlacionando os dados com a literatura.",
+          "Evidências encontradas e confirmação das hipóteses levantadas.",
+          "Análise dos impactos práticos observados na área de estudo."
+        ],
+        notes: "Este é o coração da apresentação: mostre com clareza o que foi descoberto ou analisado."
+      },
+      {
+        title: "5. Considerações Finais & Conclusão",
+        isCover: false,
+        bullets: [
+          "Cumprimento integral dos objetivos propostos no início da pesquisa.",
+          "Principais contribuições teóricas e práticas para a comunidade.",
+          "Limitações metodológicas identificadas durante o percurso.",
+          "Sugestões e perspectivas para investigações e estudos futuros."
+        ],
+        notes: "Sintetize as respostas aos objetivos e encerre reforçando o valor do trabalho."
+      },
+      {
+        title: "6. Referências Bibliográficas (ABNT)",
+        isCover: false,
+        bullets: [
+          `ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR 14724. Rio de Janeiro: ABNT, ${year || new Date().getFullYear()}.`,
+          "Fontes científicas, artigos indexados e obras especializadas citadas no corpo do texto.",
+          "Material disponível para consulta detalhada no documento completo."
+        ],
+        notes: "Mencione as principais fontes utilizadas e abra espaço para perguntas da banca."
+      }
+    ];
+  };
+
+  // Exportação Direta em PowerPoint (.pptx) 100% compatível com Google Slides
+  const exportPPTXSlides = async () => {
+    const pptx = new pptxgen();
+    pptx.layout = "LAYOUT_16x9";
+    pptx.title = title || "Apresentação Acadêmica";
+    pptx.author = studentName || "EMIA.EDUTECH";
+
+    const slidesData = parseDocumentIntoSlides(generatedText);
+
+    slidesData.forEach((s, idx) => {
+      const slide = pptx.addSlide();
+      
+      const primaryColor = slidesTheme === 'academic' ? "1E3A8A" : slidesTheme === 'modern' ? "0D9488" : "0F172A";
+
+      if (s.isCover) {
+        slide.background = { color: primaryColor };
+        slide.addText(s.title, {
+          x: "10%",
+          y: "25%",
+          w: "80%",
+          h: "30%",
+          fontSize: 28,
+          bold: true,
+          color: "FFFFFF",
+          align: "center",
+          fontFace: "Arial"
+        });
+
+        slide.addText(s.subtitle || (course ? `Curso: ${course}` : "Apresentação Acadêmica"), {
+          x: "10%",
+          y: "55%",
+          w: "80%",
+          h: "10%",
+          fontSize: 16,
+          color: "E2E8F0",
+          align: "center",
+          fontFace: "Arial"
+        });
+
+        slide.addText(`${s.author} • ${s.institution} (${s.year})`, {
+          x: "10%",
+          y: "75%",
+          w: "80%",
+          h: "10%",
+          fontSize: 13,
+          color: "CBD5E1",
+          align: "center",
+          fontFace: "Arial"
+        });
+      } else {
+        slide.background = { color: "F8FAFC" };
+
+        slide.addShape(pptx.ShapeType.rect, {
+          x: 0,
+          y: 0,
+          w: "100%",
+          h: "15%",
+          fill: { color: primaryColor }
+        });
+
+        slide.addText(s.title, {
+          x: "5%",
+          y: "2%",
+          w: "90%",
+          h: "11%",
+          fontSize: 20,
+          bold: true,
+          color: "FFFFFF",
+          fontFace: "Arial",
+          valign: "middle"
+        });
+
+        const textItems = s.bullets.map(b => ({
+          text: b,
+          options: {
+            fontSize: 15,
+            color: "1E293B",
+            breakLine: true,
+            bullet: { type: "bullet", code: "25AA" },
+            fontFace: "Arial",
+            lineSpacingMultiple: 1.3
+          }
+        }));
+
+        slide.addText(textItems as any, {
+          x: "6%",
+          y: "22%",
+          w: "88%",
+          h: "68%",
+          valign: "top"
+        });
+
+        slide.addText(`${title || "Trabalho Acadêmico"} | Slide ${idx + 1} de ${slidesData.length}`, {
+          x: "5%",
+          y: "93%",
+          w: "90%",
+          h: "5%",
+          fontSize: 9,
+          color: "94A3B8",
+          fontFace: "Arial"
+        });
+      }
+
+      if (s.notes) {
+        slide.addNotes(s.notes);
+      }
+    });
+
+    await pptx.writeFile({ fileName: `apresentacao-${(title || "slides-academicos").toLowerCase().replace(/[^a-z0-9]/g, "-")}.pptx` });
+    setErrorMessage("✨ Apresentação de slides gerada com sucesso!");
+    setTimeout(() => setErrorMessage(""), 3500);
+  };
+
+  const openInGoogleSlides = () => {
+    const slidesData = parseDocumentIntoSlides(generatedText);
+    const outlineText = slidesData.map((s, i) => `=== SLIDE ${i + 1}: ${s.title} ===\n${s.bullets.map(b => `• ${b}`).join('\n')}\n[Notas do Apresentador: ${s.notes || ''}]\n`).join('\n\n');
+    
+    navigator.clipboard.writeText(outlineText);
+    window.open("https://docs.google.com/presentation/u/0/create", "_blank");
+    setErrorMessage("🚀 Google Slides aberto! O roteiro dos slides foi copiado para sua área de transferência.");
+    setTimeout(() => setErrorMessage(""), 4500);
+  };
+
   const handleNewWork = () => {
     setTitle("");
     setSubtitle("");
@@ -1163,17 +1403,41 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 md:p-6 flex flex-col lg:flex-row gap-4 items-start relative">
         
-        {/* Sidebar Controls */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Novo Trabalho</h2>
-              <Button onClick={handleNewWork} variant="outline" size="sm" className="text-xs h-7">
-                <Plus className="w-3 h-3 mr-1" /> Novo
-              </Button>
-            </div>
+        {/* Botão flutuante para reabrir a barra lateral quando recolhida */}
+        {isSidebarCollapsed && (
+          <button
+            onClick={() => setIsSidebarCollapsed(false)}
+            title="Expandir formulário do trabalho"
+            className="hidden lg:flex items-center gap-1.5 bg-white border border-gray-300 hover:border-blue-500 shadow-lg text-gray-800 hover:text-blue-600 px-3 py-2 rounded-r-xl font-bold text-xs fixed left-0 top-32 z-30 transition-all hover:translate-x-1 group"
+          >
+            <PanelLeftOpen className="w-4 h-4 text-blue-600 group-hover:scale-110" />
+            <span>Formulário</span>
+          </button>
+        )}
+
+        {/* Sidebar Controls (Recolhível para puxar o palco) */}
+        {!isSidebarCollapsed && (
+          <div className="w-full lg:w-80 xl:w-96 flex-shrink-0 flex flex-col gap-6 transition-all">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Novo Trabalho</h2>
+                <div className="flex items-center gap-1">
+                  <Button onClick={handleNewWork} variant="outline" size="sm" className="text-xs h-7">
+                    <Plus className="w-3 h-3 mr-1" /> Novo
+                  </Button>
+                  <Button 
+                    onClick={() => setIsSidebarCollapsed(true)} 
+                    variant="ghost" 
+                    size="sm" 
+                    title="Puxar o palco (recolher painel)"
+                    className="text-xs h-7 px-2 text-gray-500 hover:text-blue-600"
+                  >
+                    <PanelLeftClose className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             
             <div className="space-y-4">
               <div>
@@ -1430,13 +1694,14 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
 
-        {/* Editor Area */}
-        <div className="lg:col-span-8 flex flex-col h-[calc(100vh-8rem)]">
+        {/* Editor Area (Palco Aumentado com visualização completa A4) */}
+        <div className={`${isStageExpanded ? 'fixed inset-2 md:inset-6 z-50 bg-white rounded-2xl shadow-2xl p-4 md:p-6' : 'flex-1 w-full min-w-0 h-[calc(100vh-6rem)]'} flex flex-col transition-all`}>
           
           {/* Top Bar with Tabs and Quick Export Actions */}
-          <div className="flex flex-wrap items-center justify-between border-b border-gray-200 mb-4 pb-2 gap-3">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between border-b border-gray-200 mb-3 pb-2 gap-2">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => setActiveTab("editor")}
                 className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "editor" || activeTab === "generator" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
@@ -1460,6 +1725,15 @@ export default function App() {
             {/* Ações Rápidas de Exportação e Validação no Topo */}
             <div className="flex items-center gap-1.5">
               <Button 
+                onClick={() => setIsStageExpanded(!isStageExpanded)} 
+                variant="outline" 
+                size="sm" 
+                className="text-xs h-8 text-indigo-700 border-indigo-200 hover:bg-indigo-50 font-medium"
+              >
+                <Maximize2 className="w-3.5 h-3.5 mr-1" />
+                {isStageExpanded ? "Recolher" : "Expandir Palco"}
+              </Button>
+              <Button 
                 onClick={handleCheckAuthenticity} 
                 disabled={isLoading || !generatedText} 
                 variant="outline" 
@@ -1474,6 +1748,21 @@ export default function App() {
               </Button>
               <Button onClick={() => window.print()} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-800 border-gray-300 hover:bg-gray-50 font-medium">
                 <Printer className="w-3.5 h-3.5 mr-1 text-gray-600" /> Imprimir A4
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (!generatedText) {
+                    setErrorMessage("Gere ou insira um texto primeiro para criar os slides.");
+                    return;
+                  }
+                  setShowSlidesModal(true);
+                }} 
+                disabled={!generatedText} 
+                size="sm" 
+                className="text-xs h-8 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold shadow-xs flex items-center gap-1"
+              >
+                <Presentation className="w-3.5 h-3.5 mr-1 animate-pulse" />
+                📽️ Slides (Google / PPTX)
               </Button>
               <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
                 <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
@@ -1510,237 +1799,176 @@ export default function App() {
             </div>
 
             {(activeTab === "editor" || activeTab === "generator") && (
-              <div className="flex flex-col h-full relative">
-                {/* Barra de Ferramentas do Documento ABNT A4 */}
-                <div className="bg-slate-100/90 border-b border-gray-200 px-4 py-2 flex items-center justify-between z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-md shadow-xs">
-                      <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-                      Visualização Oficial A4 (NBR 14724)
-                    </span>
-                  </div>
+              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-800/90">
+                {(() => {
+                  const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
+                  const totalPages = pages.length;
+                  const safePageIndex = Math.min(Math.max(0, currentPageIndex), totalPages - 1);
+                  const pageText = pages[safePageIndex] || "";
+                  const isCover = safePageIndex === 0;
+                  const isTitlePage = safePageIndex === 1;
+                  const isBodyPage = safePageIndex >= 2;
+                  const pageNum = safePageIndex + 1;
+                  const lines = pageText.split("\n").map(l => l.trim()).filter(Boolean);
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setGeneratedText(prev => (prev ? prev + "\n\n--- [QUEBRA DE PÁGINA] ---\n\n" : ""));
-                        setErrorMessage("Nova Página A4 inserida no documento.");
-                        setTimeout(() => setErrorMessage(""), 2500);
-                      }}
-                      className="px-3 py-1 text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-md shadow-xs flex items-center gap-1 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-blue-600" /> + Inserir Página A4
-                    </button>
-                  </div>
-                </div>
+                  return (
+                    <div className="flex-1 flex items-center justify-center p-2 md:p-4 relative overflow-hidden select-text">
+                      
+                      {/* SETA ESQUERDA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
+                      <button
+                        onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))}
+                        disabled={safePageIndex === 0}
+                        title="Página Anterior (Seta Esquerda)"
+                        className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-30 bg-white/90 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-2.5 md:p-3.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
+                      >
+                        <ChevronLeft className="w-5 h-5 md:w-7 md:h-7 stroke-[2.5]" />
+                      </button>
 
-                {/* VISUALIZADOR 100% FIEL À IMPRESSÃO ABNT: FOLHAS A4 (210mm x 297mm) */}
-                <div className="flex-1 bg-slate-300/80 p-4 md:p-8 overflow-y-auto flex flex-col items-center gap-10 pb-32 print:p-0 print:bg-white">
-                  {(() => {
-                    const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
-                    return pages.map((pageText, pIdx) => {
-                      const isCover = pIdx === 0;
-                      const isTitlePage = pIdx === 1;
-                      const isBodyPage = pIdx >= 2;
-                      const pageNum = pIdx + 1;
+                      {/* SETA DIREITA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
+                      <button
+                        onClick={() => setCurrentPageIndex(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePageIndex >= totalPages - 1}
+                        title="Próxima Página (Seta Direita)"
+                        className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 z-30 bg-white/90 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-2.5 md:p-3.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
+                      >
+                        <ChevronRight className="w-5 h-5 md:w-7 md:h-7 stroke-[2.5]" />
+                      </button>
 
-                      // Parsing dos blocos da Capa / Folha de Rosto
-                      const lines = pageText.split("\n").map(l => l.trim()).filter(Boolean);
-
-                      return (
-                        <div 
-                          key={pIdx} 
-                          className="w-full max-w-[794px] min-h-[1050px] md:min-h-[1123px] bg-white shadow-2xl rounded-sm border border-gray-300 relative flex flex-col p-8 md:p-[30mm_20mm_20mm_30mm] transition-all group print:shadow-none print:border-none print:m-0 print:min-h-[297mm] print:break-after-page"
-                        >
-                          {/* INDICAÇÃO VISUAL DA FOLHA NA TELA */}
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4 text-[10px] text-gray-400 select-none print:hidden">
-                            <span className="font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                              {isCover ? "PÁGINA 1 — CAPA ABNT (IMPRESSÃO A4)" : isTitlePage ? "PÁGINA 2 — FOLHA DE ROSTO ABNT" : `PÁGINA ${pageNum} — CORPO DO TRABALHO ABNT`}
+                      {/* FOLHA A4 COMPLETA VISÍVEL 100% DE UMA VEZ (PROPORÇÃO EXATA 210 x 297mm) */}
+                      <div 
+                        className="h-[calc(100vh-10.5rem)] max-h-[860px] aspect-[210/297] w-auto bg-white shadow-2xl rounded-xs border border-gray-300 relative flex flex-col p-[6%_5%_5%_6%] transition-all select-text print:shadow-none print:border-none print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
+                      >
+                        {/* INDICAÇÃO DISCRETA DA FOLHA NO TOPO */}
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-1 mb-2 text-[10px] text-gray-400 select-none print:hidden">
+                          <span className="font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                            {isCover ? "Pág 1 — Capa ABNT" : isTitlePage ? "Pág 2 — Folha de Rosto" : `Pág ${pageNum} — Corpo do Trabalho`}
+                          </span>
+                          
+                          {isBodyPage ? (
+                            <span className="font-mono font-bold text-[11px] text-gray-800">
+                              N° {pageNum}
                             </span>
-                            
-                            {/* NUMERAÇÃO SUPERIOR DIREITA ABNT */}
-                            {isBodyPage ? (
-                              <span className="font-mono font-bold text-xs bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded shadow-xs">
-                                N° {pageNum} (Canto Superior Direito)
-                              </span>
-                            ) : (
-                              <span className="italic text-[10px] text-gray-400">Contada, sem número impresso (ABNT NBR 14724)</span>
-                            )}
-                          </div>
-
-                          {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO (A 2cm do topo e 2cm da margem direita) */}
-                          {isBodyPage && (
-                            <div className="absolute top-[20mm] right-[20mm] font-mono text-xs font-bold text-gray-800 select-none">
-                              {pageNum}
-                            </div>
-                          )}
-
-                          {/* RENDERIZAÇÃO 1:1 DA CAPA ABNT (HARMONIA VERTICAL NA FOLHA A4) */}
-                          {isCover ? (
-                            <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-4 select-text">
-                              {/* TOPO (3cm): INSTITUIÇÃO E CURSO */}
-                              <div>
-                                <h1 className="font-bold text-sm md:text-base uppercase tracking-wider">
-                                  {institution || lines[0] || "NOME DA INSTITUIÇÃO DE ENSINO"}
-                                </h1>
-                                {(course || (lines[1] && lines[1] !== lines[0])) && (
-                                  <h2 className="font-semibold text-xs md:text-sm uppercase text-gray-700 mt-1">
-                                    {course || lines[1]}
-                                  </h2>
-                                )}
-                              </div>
-
-                              {/* TERÇO SUPERIOR: AUTOR */}
-                              <div className="my-8">
-                                <p className="font-semibold text-sm md:text-base uppercase tracking-wide">
-                                  {studentName || lines[2] || "NOME DO AUTOR"}
-                                </p>
-                              </div>
-
-                              {/* CENTRO GEOMÉTRICO: TÍTULO E SUBTÍTULO */}
-                              <div className="my-auto py-6">
-                                <h3 className="font-extrabold text-base md:text-lg uppercase tracking-tight text-gray-900 leading-snug">
-                                  {title || lines[3] || "TÍTULO DO TRABALHO ACADÊMICO"}
-                                </h3>
-                                {(subtitle || lines[4]) && (
-                                  <p className="font-normal text-sm md:text-base text-gray-700 mt-1">
-                                    {subtitle || lines[4]}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* BASE INFERIOR (2cm): CIDADE E ANO */}
-                              <div className="mt-8 pt-4">
-                                <p className="font-bold text-xs md:text-sm uppercase text-gray-800">
-                                  {city || "CIDADE - UF"}
-                                </p>
-                                <p className="font-bold text-xs md:text-sm text-gray-800 mt-0.5">
-                                  {year || new Date().getFullYear().toString()}
-                                </p>
-                              </div>
-
-                              {/* TEXTAREA OCULTA EDITÁVEL PARA SINCRONIA TOTAL */}
-                              <textarea
-                                value={pageText}
-                                onChange={(e) => {
-                                  const newPages = [...pages];
-                                  newPages[pIdx] = e.target.value;
-                                  setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                                }}
-                                className="w-full mt-4 p-2 text-xs font-mono bg-gray-50 border border-gray-200 rounded text-gray-600 print:hidden"
-                                rows={3}
-                                placeholder="Edição rápida do texto bruto da Capa..."
-                              />
-                            </div>
-                          ) : isTitlePage ? (
-                            /* RENDERIZAÇÃO 1:1 DA FOLHA DE ROSTO ABNT */
-                            <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-4 select-text">
-                              {/* TOPO: AUTOR */}
-                              <div className="text-center">
-                                <p className="font-semibold text-sm md:text-base uppercase tracking-wide">
-                                  {studentName || lines[0] || "NOME DO AUTOR"}
-                                </p>
-                              </div>
-
-                              {/* CENTRO: TÍTULO */}
-                              <div className="my-6 text-center">
-                                <h3 className="font-bold text-base md:text-lg uppercase tracking-tight text-gray-900">
-                                  {title || lines[1] || "TÍTULO DO TRABALHO ACADÊMICO"}
-                                </h3>
-                                {subtitle && (
-                                  <p className="font-normal text-sm md:text-base text-gray-700 mt-1">
-                                    {subtitle}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* BLOCO DE NATUREZA DO TRABALHO: RECUADO À DIREITA (8CM DA ESQUERDA) */}
-                              <div className="my-auto w-full flex justify-end">
-                                <div className="w-full md:w-3/5 text-justify text-[10pt] leading-[1.3] text-gray-800 bg-gray-50/50 p-4 rounded border border-gray-200">
-                                  <p>
-                                    {(documentType === "outros" ? customDocumentType : documentType) || "Trabalho Acadêmico"} apresentado à {institution || "Instituição de Ensino"}{course ? ` como requisito parcial de avaliação para o curso de ${course}` : ""}.
-                                  </p>
-                                  {advisor && (
-                                    <p className="mt-3 font-semibold text-gray-900">
-                                      Orientador(a): {advisor}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* BASE INFERIOR: CIDADE E ANO */}
-                              <div className="text-center mt-8 pt-4">
-                                <p className="font-bold text-xs md:text-sm uppercase text-gray-800">
-                                  {city || "CIDADE - UF"}
-                                </p>
-                                <p className="font-bold text-xs md:text-sm text-gray-800 mt-0.5">
-                                  {year || new Date().getFullYear().toString()}
-                                </p>
-                              </div>
-
-                              {/* TEXTAREA OCULTA EDITÁVEL PARA SINCRONIA TOTAL */}
-                              <textarea
-                                value={pageText}
-                                onChange={(e) => {
-                                  const newPages = [...pages];
-                                  newPages[pIdx] = e.target.value;
-                                  setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                                }}
-                                className="w-full mt-4 p-2 text-xs font-mono bg-gray-50 border border-gray-200 rounded text-gray-600 print:hidden"
-                                rows={3}
-                                placeholder="Edição rápida do texto bruto da Folha de Rosto..."
-                              />
-                            </div>
                           ) : (
-                            /* RENDERIZAÇÃO 1:1 DO CORPO DO TRABALHO ABNT (PÁGINA 3 EM DIANTE) */
-                            <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text">
-                              <textarea
-                                value={pageText.trimStart()}
-                                onChange={(e) => {
-                                  const newPages = [...pages];
-                                  newPages[pIdx] = e.target.value;
-                                  setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                                }}
-                                className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.5] text-justify text-sm md:text-[12pt] indent-8 bg-transparent"
-                                placeholder={`Escreva o texto acadêmico da página ${pageNum} aqui (Introdução, Desenvolvimento, etc)...`}
-                              />
-                            </div>
+                            <span className="italic text-[9px] text-gray-400">Contada, sem número impresso</span>
                           )}
+                        </div>
 
-                          {/* RODAPÉ DA FOLHA A4 */}
-                          <div className="pt-3 mt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 select-none print:hidden">
-                            <span>Norma ABNT NBR 14724 • Folha A4 • Margens 3cm/2cm</span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  const newPages = [...pages];
-                                  newPages.splice(pIdx + 1, 0, "");
-                                  setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                                }}
-                                className="text-blue-600 hover:text-blue-800 font-semibold"
-                              >
-                                + Nova Página Abaixo
-                              </button>
-                              {pages.length > 1 && (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`Deseja remover a Página ${pageNum}?`)) {
-                                      const newPages = pages.filter((_, idx) => idx !== pIdx);
-                                      setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                                    }
-                                  }}
-                                  className="text-rose-500 hover:text-rose-700 ml-2"
-                                >
-                                  Excluir Página
-                                </button>
+                        {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO */}
+                        {isBodyPage && (
+                          <div className="absolute top-[4%] right-[5%] font-mono text-xs font-bold text-gray-800 select-none">
+                            {pageNum}
+                          </div>
+                        )}
+
+                        {/* RENDERIZAÇÃO DA CAPA ABNT */}
+                        {isCover ? (
+                          <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-2 select-text overflow-hidden">
+                            <div>
+                              <h1 className="font-bold text-xs sm:text-sm uppercase tracking-wider">
+                                {institution || lines[0] || "NOME DA INSTITUIÇÃO DE ENSINO"}
+                              </h1>
+                              {(course || (lines[1] && lines[1] !== lines[0])) && (
+                                <h2 className="font-semibold text-[10px] sm:text-xs uppercase text-gray-700 mt-0.5">
+                                  {course || lines[1]}
+                                </h2>
                               )}
                             </div>
+
+                            <div className="my-auto py-2">
+                              <p className="font-semibold text-xs sm:text-sm uppercase tracking-wide">
+                                {studentName || lines[2] || "NOME DO AUTOR"}
+                              </p>
+                            </div>
+
+                            <div className="my-auto py-3">
+                              <h3 className="font-extrabold text-xs sm:text-base uppercase tracking-tight text-gray-900 leading-snug">
+                                {title || lines[3] || "TÍTULO DO TRABALHO ACADÊMICO"}
+                              </h3>
+                              {(subtitle || lines[4]) && (
+                                <p className="font-normal text-[10px] sm:text-xs text-gray-700 mt-0.5">
+                                  {subtitle || lines[4]}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="mt-auto pt-2">
+                              <p className="font-bold text-[10px] sm:text-xs uppercase text-gray-800">
+                                {city || "CIDADE - UF"}
+                              </p>
+                              <p className="font-bold text-[10px] sm:text-xs text-gray-800">
+                                {year || new Date().getFullYear().toString()}
+                              </p>
+                            </div>
+                          </div>
+                        ) : isTitlePage ? (
+                          /* RENDERIZAÇÃO DA FOLHA DE ROSTO ABNT */
+                          <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-2 select-text overflow-hidden">
+                            <div className="text-center">
+                              <p className="font-semibold text-xs sm:text-sm uppercase tracking-wide">
+                                {studentName || lines[0] || "NOME DO AUTOR"}
+                              </p>
+                            </div>
+
+                            <div className="my-auto text-center py-2">
+                              <h3 className="font-bold text-xs sm:text-base uppercase tracking-tight text-gray-900">
+                                {title || lines[1] || "TÍTULO DO TRABALHO ACADÊMICO"}
+                              </h3>
+                              {subtitle && (
+                                <p className="font-normal text-[10px] sm:text-xs text-gray-700 mt-0.5">
+                                  {subtitle}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="my-auto w-full flex justify-end">
+                              <div className="w-3/5 text-justify text-[9pt] leading-[1.25] text-gray-800 bg-gray-50/50 p-2.5 rounded border border-gray-200">
+                                <p>
+                                  {(documentType === "outros" ? customDocumentType : documentType) || "Trabalho Acadêmico"} apresentado à {institution || "Instituição de Ensino"}{course ? ` como requisito parcial de avaliação para o curso de ${course}` : ""}.
+                                </p>
+                                {advisor && (
+                                  <p className="mt-1.5 font-semibold text-gray-900 text-[8.5pt]">
+                                    Orientador(a): {advisor}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-center mt-auto pt-2">
+                              <p className="font-bold text-[10px] sm:text-xs uppercase text-gray-800">
+                                {city || "CIDADE - UF"}
+                              </p>
+                              <p className="font-bold text-[10px] sm:text-xs text-gray-800">
+                                {year || new Date().getFullYear().toString()}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT */
+                          <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text overflow-hidden">
+                            <textarea
+                              value={pageText.trimStart()}
+                              onChange={(e) => {
+                                const newPages = [...pages];
+                                newPages[safePageIndex] = e.target.value;
+                                setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
+                              }}
+                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.4] text-justify text-[10pt] sm:text-[11pt] indent-6 bg-transparent"
+                              placeholder={`Escreva o texto acadêmico da página ${pageNum} aqui...`}
+                            />
+                          </div>
+                        )}
+
+                        {/* INDICADOR INFERIOR DE PÁGINA (FLIPBOOK BADGE) */}
+                        <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400 select-none print:hidden">
+                          <span className="font-semibold text-blue-600">📖 Folha A4 • Norma NBR 14724</span>
+                          <div className="flex items-center gap-1.5 font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
+                            <span>Página {safePageIndex + 1} de {totalPages}</span>
                           </div>
                         </div>
-                      );
-                    });
-                  })()}
-                </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.08)] z-20">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
@@ -2252,6 +2480,119 @@ export default function App() {
                     Já fiz o PIX / Liberar Agora ({selectedPixPlan === 'single' ? '+1 Trabalho' : selectedPixPlan === 'trio' ? '+3 Trabalhos' : '+7 Trabalhos'})
                   </Button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE APRESENTAÇÃO DE SLIDES (GOOGLE SLIDES / PPTX) */}
+      {showSlidesModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-xs">
+                  <Presentation className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-bold">Apresentação de Slides</h3>
+                  <p className="text-xs text-amber-100">Geração automática para Google Slides & PowerPoint</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSlidesModal(false)}
+                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors text-white text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+              
+              {/* Tema Visual dos Slides */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Tema Visual dos Slides:
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <button
+                    onClick={() => setSlidesTheme("academic")}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      slidesTheme === "academic"
+                        ? "border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="w-full h-3 rounded bg-blue-900 mb-2" />
+                    <p className="text-xs font-bold text-gray-900">Acadêmico NBR</p>
+                    <p className="text-[10px] text-gray-500">Azul Marinho & Branco</p>
+                  </button>
+
+                  <button
+                    onClick={() => setSlidesTheme("modern")}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      slidesTheme === "modern"
+                        ? "border-teal-600 bg-teal-50/70 ring-2 ring-teal-500/20"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="w-full h-3 rounded bg-teal-700 mb-2" />
+                    <p className="text-xs font-bold text-gray-900">Moderno Tech</p>
+                    <p className="text-[10px] text-gray-500">Verde Petróleo & Slate</p>
+                  </button>
+
+                  <button
+                    onClick={() => setSlidesTheme("dark")}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      slidesTheme === "dark"
+                        ? "border-slate-800 bg-slate-100 ring-2 ring-slate-800/20"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="w-full h-3 rounded bg-slate-900 mb-2" />
+                    <p className="text-xs font-bold text-gray-900">Minimalista</p>
+                    <p className="text-[10px] text-gray-500">Grafite & Cinza Claro</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Pré-visualização da Estrutura dos Slides */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-gray-800">Estrutura Gerada (6 Slides)</span>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Pronto para Defesa</span>
+                </div>
+                <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+                  <li><strong className="text-gray-800">Slide 1:</strong> Capa com Título, Autor, Orientador e Instituição</li>
+                  <li><strong className="text-gray-800">Slide 2:</strong> Introdução, Relevância & Contextualização</li>
+                  <li><strong className="text-gray-800">Slide 3:</strong> Problema de Pesquisa, Objetivos e Hipótese</li>
+                  <li><strong className="text-gray-800">Slide 4:</strong> Fundamentação Teórica & Metodologia</li>
+                  <li><strong className="text-gray-800">Slide 5:</strong> Desenvolvimento & Principais Resultados</li>
+                  <li><strong className="text-gray-800">Slide 6:</strong> Conclusão & Referências ABNT</li>
+                </ul>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="space-y-2.5 pt-2">
+                <Button
+                  onClick={openInGoogleSlides}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3.5 rounded-2xl text-xs md:text-sm shadow-md shadow-amber-500/25 flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  🚀 Criar e Abrir no Google Slides (Com Roteiro Copiado)
+                </Button>
+
+                <Button
+                  onClick={exportPPTXSlides}
+                  variant="outline"
+                  className="w-full border-2 border-gray-300 hover:border-gray-400 text-gray-800 font-bold py-3.5 rounded-2xl text-xs md:text-sm flex items-center justify-center gap-2 bg-white"
+                >
+                  <Download className="w-4 h-4 text-orange-600" />
+                  📥 Baixar Arquivo .pptx (Compatível com Google Slides & PowerPoint)
+                </Button>
               </div>
 
             </div>
