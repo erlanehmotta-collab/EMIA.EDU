@@ -6,7 +6,7 @@ import {
   UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
   User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode, Printer,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut, Maximize2, Minimize2,
-  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2
+  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2, ChevronsDown, ChevronDown, ArrowDown
 } from "lucide-react";
 import pptxgen from "pptxgenjs";
 import ReactMarkdown from "react-markdown";
@@ -120,6 +120,7 @@ export default function App() {
   const [zoomScale, setZoomScale] = useState<number>(85); // 85% permite ver a folha A4 inteira em qualquer monitor
   const [isStageExpanded, setIsStageExpanded] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [stageHeight, setStageHeight] = useState<number>(0);
   const [showSlidesModal, setShowSlidesModal] = useState<boolean>(false);
   const [slidesTheme, setSlidesTheme] = useState<"academic" | "modern" | "dark">("academic");
 
@@ -1681,7 +1682,6 @@ export default function App() {
                   {isLoading && activeTab === 'editor' ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Wand2 className="w-5 h-5 mr-2" />}
                   Aprimorar Texto com IA
                 </Button>
-
                 <Button 
                   onClick={handleFormatABNT} 
                   disabled={isLoading || !generatedText} 
@@ -1696,8 +1696,11 @@ export default function App() {
         </div>
       )}
 
-        {/* Editor Area (Palco Aumentado com visualização completa A4) */}
-        <div className={`${isStageExpanded ? 'fixed inset-2 md:inset-6 z-50 bg-white rounded-2xl shadow-2xl p-4 md:p-6' : 'flex-1 w-full min-w-0 h-[calc(100vh-6rem)]'} flex flex-col transition-all`}>
+        {/* Editor Area (Palco Aumentado com visualização completa A4 estilo Word e PDF) */}
+        <div 
+          className={`${isStageExpanded ? 'fixed inset-2 md:inset-6 z-50 bg-white rounded-2xl shadow-2xl p-4 md:p-6' : 'flex-1 w-full min-w-0'} flex flex-col transition-all`}
+          style={{ height: isStageExpanded ? 'auto' : stageHeight ? `${stageHeight}px` : 'calc(100vh - 4.5rem)', minHeight: isStageExpanded ? 'auto' : '680px' }}
+        >
           
           {/* Top Bar with Tabs and Quick Export Actions */}
           <div className="flex flex-wrap items-center justify-between border-b border-gray-200 mb-3 pb-2 gap-2">
@@ -1770,10 +1773,9 @@ export default function App() {
             </div>
           </div>
 
+          {/* Canvas Area with Progress Bar */}
           <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col relative">
-            
-            {/* Progress Bar & Error Messages */}
-            <div className="absolute top-0 left-0 right-0 z-20">
+            <div className="relative z-10">
               {isLoading && (
                 <div className="w-full bg-blue-100 h-1.5 overflow-hidden">
                   <div 
@@ -1782,21 +1784,10 @@ export default function App() {
                   />
                 </div>
               )}
-              {errorMessage && (
-                <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-4 py-3 flex items-start gap-3 shadow-sm">
-                  <span className="mt-0.5">ℹ️</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{errorMessage}</p>
-                    <button onClick={() => setErrorMessage("")} className="text-xs text-amber-600 hover:text-amber-900 underline mt-1">
-                      Dispensar aviso
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {(activeTab === "editor" || activeTab === "generator") && (
-              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-800/90">
+              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#525659]">
                 {(() => {
                   const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
                   const totalPages = pages.length;
@@ -1809,16 +1800,16 @@ export default function App() {
                   const lines = pageText.split("\n").map(l => l.trim()).filter(Boolean);
 
                   return (
-                    <div className="flex-1 w-full h-full flex items-center justify-center p-2 md:p-5 pb-20 relative overflow-hidden select-text">
+                    <div className="flex-1 w-full h-full flex flex-col items-center justify-start py-6 px-3 md:px-8 pb-24 relative overflow-y-auto overflow-x-hidden select-text">
                       
                       {/* SETA ESQUERDA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
                       <button
                         onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))}
                         disabled={safePageIndex === 0}
                         title="Página Anterior (Seta Esquerda)"
-                        className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-30 bg-white/90 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-2.5 md:p-3.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
+                        className="fixed left-4 lg:left-[calc(20rem+1.5rem)] top-1/2 -translate-y-1/2 z-30 bg-white/95 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-3 rounded-full disabled:opacity-10 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
                       >
-                        <ChevronLeft className="w-5 h-5 md:w-7 md:h-7 stroke-[2.5]" />
+                        <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
                       </button>
 
                       {/* SETA DIREITA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
@@ -1826,31 +1817,49 @@ export default function App() {
                         onClick={() => setCurrentPageIndex(p => Math.min(totalPages - 1, p + 1))}
                         disabled={safePageIndex >= totalPages - 1}
                         title="Próxima Página (Seta Direita)"
-                        className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 z-30 bg-white/90 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-2.5 md:p-3.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
+                        className="fixed right-6 top-1/2 -translate-y-1/2 z-30 bg-white/95 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-3 rounded-full disabled:opacity-10 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
                       >
-                        <ChevronRight className="w-5 h-5 md:w-7 md:h-7 stroke-[2.5]" />
+                        <ChevronRight className="w-6 h-6 stroke-[2.5]" />
                       </button>
 
-                      {/* FOLHA A4 100% ADAPTADA DINAMICAMENTE AO PALCO */}
-                      <div 
-                        style={{ height: 'calc(100% - 10px)', maxHeight: '100%', maxWidth: '100%', aspectRatio: '210 / 297' }}
-                        className="w-auto bg-white shadow-2xl rounded-xs border border-gray-400 relative flex flex-col p-[4%_4%_4%_4%] transition-all select-text overflow-hidden print:shadow-none print:border-none print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
-                      >
-                        {/* INDICAÇÃO DISCRETA DA FOLHA NO TOPO */}
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-1 mb-2 text-[10px] text-gray-400 select-none print:hidden">
-                          <span className="font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                            {isCover ? "Pág 1 — Capa ABNT" : isTitlePage ? "Pág 2 — Folha de Rosto" : `Pág ${pageNum} — Corpo do Trabalho`}
-                          </span>
-                          
-                          {isBodyPage ? (
-                            <span className="font-mono font-bold text-[11px] text-gray-800">
-                              N° {pageNum}
-                            </span>
-                          ) : (
-                            <span className="italic text-[9px] text-gray-400">Contada, sem número impresso</span>
-                          )}
-                        </div>
+                      {/* BOTÃO PARA AUMENTAR OU DIMINUIR A PÁGINA NO PALCO */}
+                      <div className="fixed right-6 bottom-24 z-30 flex items-center bg-white/95 backdrop-blur border border-gray-300 shadow-2xl rounded-2xl p-1 gap-1 select-none print:hidden">
+                        <button
+                          onClick={() => setZoomScale(z => Math.max(40, z - 10))}
+                          title="Diminuir Página (Zoom -)"
+                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                        >
+                          <ZoomOut className="w-4 h-4 stroke-[2.5]" />
+                        </button>
+                        
+                        <button
+                          onClick={() => setZoomScale(100)}
+                          title="Ajuste ao Palco (100%)"
+                          className="px-2.5 py-1 text-xs font-extrabold text-gray-800 hover:text-blue-600 hover:bg-gray-100 rounded-xl"
+                        >
+                          {zoomScale}%
+                        </button>
+                        
+                        <button
+                          onClick={() => setZoomScale(z => Math.min(160, z + 10))}
+                          title="Aumentar Página (Zoom +)"
+                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                        >
+                          <ZoomIn className="w-4 h-4 stroke-[2.5]" />
+                        </button>
+                      </div>
 
+                      {/* FOLHA A4 OFICIAL PADRÃO WORD / PDF (PROPORÇÃO EXATA 210 x 297mm) */}
+                      <div 
+                        style={{ 
+                          width: 'min(100%, 794px)',
+                          minHeight: '100%',
+                          aspectRatio: '210 / 297',
+                          transform: zoomScale !== 100 ? `scale(${zoomScale / 100})` : undefined,
+                          transformOrigin: 'top center',
+                        }}
+                        className="bg-white text-gray-900 shadow-[0_8px_30px_rgba(0,0,0,0.35)] ring-1 ring-black/10 rounded-[2px] relative flex flex-col p-[8%_6%_6%_8%] transition-transform select-text my-auto shrink-0 print:shadow-none print:ring-0 print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
+                      >
                         {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO */}
                         {isBodyPage && (
                           <div className="absolute top-[4%] right-[5%] font-mono text-xs font-bold text-gray-800 select-none">
@@ -1860,89 +1869,89 @@ export default function App() {
 
                         {/* RENDERIZAÇÃO DA CAPA ABNT */}
                         {isCover ? (
-                          <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-2 select-text overflow-y-auto">
+                          <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-4 select-text">
                             <div>
-                              <h1 className="font-bold text-xs sm:text-sm uppercase tracking-wider">
+                              <h1 className="font-bold text-sm sm:text-base uppercase tracking-wider">
                                 {institution || lines[0] || "NOME DA INSTITUIÇÃO DE ENSINO"}
                               </h1>
                               {(course || (lines[1] && lines[1] !== lines[0])) && (
-                                <h2 className="font-semibold text-[10px] sm:text-xs uppercase text-gray-700 mt-0.5">
+                                <h2 className="font-semibold text-xs sm:text-sm uppercase text-gray-700 mt-1">
                                   {course || lines[1]}
                                 </h2>
                               )}
                             </div>
 
-                            <div className="my-auto py-2">
-                              <p className="font-semibold text-xs sm:text-sm uppercase tracking-wide">
+                            <div className="my-auto py-6">
+                              <p className="font-semibold text-sm sm:text-base uppercase tracking-wide">
                                 {studentName || lines[2] || "NOME DO AUTOR"}
                               </p>
                             </div>
 
-                            <div className="my-auto py-3">
-                              <h3 className="font-extrabold text-xs sm:text-base uppercase tracking-tight text-gray-900 leading-snug">
+                            <div className="my-auto py-8">
+                              <h3 className="font-extrabold text-base sm:text-lg uppercase tracking-tight text-gray-900 leading-snug">
                                 {title || lines[3] || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </h3>
                               {(subtitle || lines[4]) && (
-                                <p className="font-normal text-[10px] sm:text-xs text-gray-700 mt-0.5">
+                                <p className="font-normal text-xs sm:text-sm text-gray-700 mt-1">
                                   {subtitle || lines[4]}
                                 </p>
                               )}
                             </div>
 
-                            <div className="mt-auto pt-2">
-                              <p className="font-bold text-[10px] sm:text-xs uppercase text-gray-800">
+                            <div className="mt-auto pt-6">
+                              <p className="font-bold text-xs sm:text-sm uppercase text-gray-800">
                                 {city || "CIDADE - UF"}
                               </p>
-                              <p className="font-bold text-[10px] sm:text-xs text-gray-800">
+                              <p className="font-bold text-xs sm:text-sm text-gray-800">
                                 {year || new Date().getFullYear().toString()}
                               </p>
                             </div>
                           </div>
                         ) : isTitlePage ? (
                           /* RENDERIZAÇÃO DA FOLHA DE ROSTO ABNT */
-                          <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-2 select-text overflow-y-auto">
+                          <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-4 select-text">
                             <div className="text-center">
-                              <p className="font-semibold text-xs sm:text-sm uppercase tracking-wide">
+                              <p className="font-semibold text-sm sm:text-base uppercase tracking-wide">
                                 {studentName || lines[0] || "NOME DO AUTOR"}
                               </p>
                             </div>
 
-                            <div className="my-auto text-center py-2">
-                              <h3 className="font-bold text-xs sm:text-base uppercase tracking-tight text-gray-900">
+                            <div className="my-auto text-center py-6">
+                              <h3 className="font-bold text-base sm:text-lg uppercase tracking-tight text-gray-900">
                                 {title || lines[1] || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </h3>
                               {subtitle && (
-                                <p className="font-normal text-[10px] sm:text-xs text-gray-700 mt-0.5">
+                                <p className="font-normal text-xs sm:text-sm text-gray-700 mt-1">
                                   {subtitle}
                                 </p>
                               )}
                             </div>
 
                             <div className="my-auto w-full flex justify-end">
-                              <div className="w-3/5 text-justify text-[9pt] leading-[1.25] text-gray-800 bg-gray-50/50 p-2.5 rounded border border-gray-200">
+                              <div className="w-3/5 text-justify text-[10pt] sm:text-[10.5pt] leading-[1.3] text-gray-800 bg-gray-50/50 p-3 rounded border border-gray-200">
                                 <p>
                                   {(documentType === "outros" ? customDocumentType : documentType) || "Trabalho Acadêmico"} apresentado à {institution || "Instituição de Ensino"}{course ? ` como requisito parcial de avaliação para o curso de ${course}` : ""}.
                                 </p>
                                 {advisor && (
-                                  <p className="mt-1.5 font-semibold text-gray-900 text-[8.5pt]">
+                                  <p className="mt-2 font-semibold text-gray-900 text-[9.5pt]">
                                     Orientador(a): {advisor}
                                   </p>
                                 )}
                               </div>
                             </div>
 
-                            <div className="text-center mt-auto pt-2">
-                              <p className="font-bold text-[10px] sm:text-xs uppercase text-gray-800">
+                            <div className="text-center mt-auto pt-6">
+                              <p className="font-bold text-xs sm:text-sm uppercase text-gray-800">
                                 {city || "CIDADE - UF"}
                               </p>
-                              <p className="font-bold text-[10px] sm:text-xs text-gray-800">
+                              <p className="font-bold text-xs sm:text-sm text-gray-800">
                                 {year || new Date().getFullYear().toString()}
                               </p>
                             </div>
                           </div>
                         ) : (
                           /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT */
-                          <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text overflow-hidden">
+                          <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text">
                             <textarea
                               value={pageText.trimStart()}
                               onChange={(e) => {
@@ -1950,19 +1959,10 @@ export default function App() {
                                 newPages[safePageIndex] = e.target.value;
                                 setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
                               }}
-                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.5] text-justify text-xs sm:text-[11pt] indent-6 bg-transparent"
-                              placeholder={`Escreva o texto acadêmico da página ${pageNum} aqui...`}
+                              className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm sm:text-base indent-8 bg-transparent min-h-[500px]"
                             />
                           </div>
                         )}
-
-                        {/* INDICADOR INFERIOR DE PÁGINA (FLIPBOOK BADGE) */}
-                        <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400 select-none print:hidden">
-                          <span className="font-semibold text-blue-600">📖 Folha A4 • Norma NBR 14724</span>
-                          <div className="flex items-center gap-1.5 font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                            <span>Página {safePageIndex + 1} de {totalPages}</span>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );
@@ -2060,26 +2060,80 @@ export default function App() {
             )}
           </div>
 
-          {/* BARRA INFORMATIVA DE STATUS ABNT */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mt-3 flex flex-wrap items-center justify-between text-xs text-gray-600">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5 font-medium text-gray-800">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                Padrão ABNT NBR 14724 (Folha A4: 210x297mm)
-              </span>
-              <span className="text-gray-400">•</span>
-              <span>Margens Oficiais: 3cm / 2cm</span>
-              <span className="text-gray-400">•</span>
-              <span>Fonte: Arial 12pt (Espaçamento 1.5)</span>
+          {/* BARRA INTERATIVA PARA PUXAR / AUMENTAR O PALCO PARA BAIXO */}
+          {!isStageExpanded && (
+            <div 
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startHeight = stageHeight || 820;
+                const handleMouseMove = (moveEvent: MouseEvent) => {
+                  const deltaY = moveEvent.clientY - startY;
+                  setStageHeight(Math.max(550, Math.min(2200, startHeight + deltaY)));
+                };
+                const handleMouseUp = () => {
+                  window.removeEventListener('mousemove', handleMouseMove);
+                  window.removeEventListener('mouseup', handleMouseUp);
+                };
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseup', handleMouseUp);
+              }}
+              onTouchStart={(e) => {
+                const startY = e.touches[0].clientY;
+                const startHeight = stageHeight || 820;
+                const handleTouchMove = (moveEvent: TouchEvent) => {
+                  const deltaY = moveEvent.touches[0].clientY - startY;
+                  setStageHeight(Math.max(550, Math.min(2200, startHeight + deltaY)));
+                };
+                const handleTouchEnd = () => {
+                  window.removeEventListener('touchmove', handleTouchMove);
+                  window.removeEventListener('touchend', handleTouchEnd);
+                };
+                window.addEventListener('touchmove', handleTouchMove);
+                window.addEventListener('touchend', handleTouchEnd);
+              }}
+              className="group cursor-row-resize flex flex-col items-center justify-center py-2 bg-gradient-to-r from-slate-100 via-blue-50 to-slate-100 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 border-t-2 border-dashed border-blue-300 transition-all select-none rounded-b-2xl mt-1"
+              title="Clique e arraste para puxar o palco para baixo"
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-blue-700 group-hover:scale-105 transition-transform">
+                <ChevronsDown className="w-4 h-4 animate-bounce" />
+                <span>↕️ Puxar Palco para Baixo (Arraste aqui ou use os botões)</span>
+                <ChevronsDown className="w-4 h-4 animate-bounce" />
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStageHeight(h => (h || 820) + 150);
+                  }}
+                  className="text-[10px] bg-white hover:bg-blue-600 hover:text-white px-2 py-0.5 rounded border border-blue-200 font-semibold shadow-xs transition-colors"
+                >
+                  +150px
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStageHeight(h => (h || 820) + 300);
+                  }}
+                  className="text-[10px] bg-white hover:bg-blue-600 hover:text-white px-2 py-0.5 rounded border border-blue-200 font-semibold shadow-xs transition-colors"
+                >
+                  +300px
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStageHeight(0);
+                  }}
+                  className="text-[10px] bg-white hover:bg-gray-700 hover:text-white px-2 py-0.5 rounded border border-gray-200 font-medium shadow-xs transition-colors"
+                >
+                  Restaurar Padrão
+                </button>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded">
-                {generatedText ? `${generatedText.length} caracteres` : "0 caracteres"}
-              </span>
-            </div>
-          </div>
-
+          )}
         </div>
 
       </main>
