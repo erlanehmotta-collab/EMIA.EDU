@@ -18,29 +18,48 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // Validadores para evitar envio de OAuth tokens ou strings inválidas como API Key
+  function isValidGeminiKey(key?: string | null): boolean {
+    if (!key) return false;
+    const clean = key.trim();
+    return clean.length >= 20 && clean.startsWith("AIzaSy");
+  }
+
+  function isValidOpenaiKey(key?: string | null): boolean {
+    if (!key) return false;
+    const clean = key.trim();
+    return clean.length >= 20 && clean.startsWith("sk-");
+  }
+
   // Helper to dynamically get Google GenAI client or OpenAI credentials
   function getAiCredentials(req?: express.Request) {
     const provider = (req?.headers["x-ai-provider"] as string) || "gemini";
-    const userGeminiKey = (req?.headers["x-gemini-api-key"] as string) || 
-                          (req?.headers["x-google-api-key"] as string) || 
-                          (req?.headers["authorization"] ? req.headers["authorization"].replace(/^Bearer\s+/i, '') : undefined) ||
-                          process.env.GEMINI_API_KEY ||
-                          process.env.GOOGLE_API_KEY ||
-                          process.env.VITE_GEMINI_API_KEY;
+    
+    // Procura chave Gemini válida (AIzaSy...)
+    const geminiCandidate = (req?.headers["x-gemini-api-key"] as string) || 
+                            (req?.headers["x-google-api-key"] as string) || 
+                            process.env.GEMINI_API_KEY ||
+                            process.env.GOOGLE_API_KEY ||
+                            process.env.VITE_GEMINI_API_KEY;
 
-    const userOpenaiKey = (req?.headers["x-openai-api-key"] as string) ||
-                          process.env.OPENAI_API_KEY ||
-                          process.env.VITE_OPENAI_API_KEY;
+    const userGeminiKey = isValidGeminiKey(geminiCandidate) ? geminiCandidate!.trim() : null;
 
-    const geminiClient = (userGeminiKey && userGeminiKey.trim() && userGeminiKey !== "undefined" && userGeminiKey !== "null") 
-      ? new GoogleGenAI({ apiKey: userGeminiKey.trim() }) 
+    // Procura chave OpenAI válida (sk-...)
+    const openaiCandidate = (req?.headers["x-openai-api-key"] as string) ||
+                            process.env.OPENAI_API_KEY ||
+                            process.env.VITE_OPENAI_API_KEY;
+
+    const userOpenaiKey = isValidOpenaiKey(openaiCandidate) ? openaiCandidate!.trim() : null;
+
+    const geminiClient = userGeminiKey 
+      ? new GoogleGenAI({ apiKey: userGeminiKey }) 
       : null;
 
     return {
       provider,
-      geminiKey: userGeminiKey?.trim() || null,
+      geminiKey: userGeminiKey,
       geminiClient,
-      openaiKey: userOpenaiKey?.trim() || null,
+      openaiKey: userOpenaiKey,
     };
   }
 
