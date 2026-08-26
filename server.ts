@@ -493,19 +493,22 @@ async function startServer() {
         generatedText = generateDynamicAcademicText(title || prompt || "tema acadêmico", selectedType);
       }
 
-      // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) + Corpo Completo (Págs 3+)
-      if (!generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
-        const instName = institution ? institution.toUpperCase() : "";
-        const courseName = course ? course.toUpperCase() : "";
-        const authorName = studentName ? studentName.toUpperCase() : "";
-        const docTitle = title ? title.toUpperCase() : "";
-        const docSubtitle = subtitle ? ` - ${subtitle}` : "";
-        const docCity = city ? city.toUpperCase() : "";
-        const docYear = year || "";
-        const docType = documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO";
-        const advText = advisor ? `Orientador(a): ${advisor}` : "";
+      // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) SOMENTE para tipos de documentos que exigem capa formalmente
+      const typesRequiringCover = ["monografia", "trabalho_academico", "projeto", "relatorio"];
+      const shouldGenerateCover = hasWorkData && typesRequiringCover.includes(documentType);
 
-        // CAPA: Só exibe os campos que foram preenchidos, campos vazios ficam 100% em branco
+      if (shouldGenerateCover && !generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+        const instName = institution && institution.trim() ? institution.trim().toUpperCase() : "";
+        const courseName = course && course.trim() ? course.trim().toUpperCase() : "";
+        const authorName = studentName && studentName.trim() ? studentName.trim().toUpperCase() : "";
+        const docTitle = title && title.trim() ? title.trim().toUpperCase() : "";
+        const docSubtitle = subtitle && subtitle.trim() ? ` - ${subtitle.trim()}` : "";
+        const docCity = city && city.trim() ? city.trim().toUpperCase() : "";
+        const docYear = year && year.trim() ? year.trim() : "";
+        const docType = documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO";
+        const advText = advisor && advisor.trim() ? `Orientador(a): ${advisor.trim()}` : "";
+
+        // CAPA: Só exibe os campos que foram preenchidos, campos vazios ficam 100% em branco (Zero Placeholder)
         let coverParts: string[] = [];
         if (instName) coverParts.push(instName);
         if (courseName) coverParts.push(courseName);
@@ -520,7 +523,7 @@ async function startServer() {
         if (coverFooter.length > 0) coverParts.push("\n\n\n\n\n\n" + coverFooter.join("\n"));
         const coverPage = coverParts.filter(p => p !== undefined).join("\n");
 
-        // FOLHA DE ROSTO: Mesma regra, sem placeholders
+        // FOLHA DE ROSTO: Mesma regra rigorosa, sem placeholders
         let titleParts: string[] = [];
         if (authorName) titleParts.push(authorName);
         titleParts.push(""); // espaço
