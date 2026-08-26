@@ -1727,34 +1727,6 @@ export default function App() {
 
             {/* Ações Rápidas de Exportação e Validação no Topo */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Seletor de Modo: Livro vs Contínuo */}
-              <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 mr-1">
-                <button
-                  onClick={() => setViewLayout("book")}
-                  title="Modo Livro (Página por página)"
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${
-                    viewLayout === "book"
-                      ? "bg-white text-blue-600 shadow-xs"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>Livro</span>
-                </button>
-                <button
-                  onClick={() => setViewLayout("continuous")}
-                  title="Modo Contínuo (Todas as páginas estilo Word/PDF)"
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${
-                    viewLayout === "continuous"
-                      ? "bg-white text-blue-600 shadow-xs"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Contínuo</span>
-                </button>
-              </div>
-
               <Button 
                 onClick={() => setIsStageExpanded(!isStageExpanded)} 
                 variant="outline" 
@@ -1819,7 +1791,6 @@ export default function App() {
                 {(() => {
                   const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
                   const totalPages = pages.length;
-                  const safePageIndex = Math.min(Math.max(0, currentPageIndex), totalPages - 1);
 
                   const renderSingleA4Sheet = (text: string, pIdx: number) => {
                     const isCover = pIdx === 0;
@@ -1977,49 +1948,10 @@ export default function App() {
                         </button>
                       </div>
 
-                      {/* RENDERIZAÇÃO: MODO CONTÍNUO (TODAS AS PÁGINAS) OU MODO LIVRO (PÁGINA ATIVA) */}
-                      {viewLayout === "continuous" ? (
-                        <div className="w-full flex flex-col items-center gap-6">
-                          {pages.map((pText, idx) => renderSingleA4Sheet(pText, idx))}
-                        </div>
-                      ) : (
-                        <div className="w-full flex flex-col items-center">
-                          {renderSingleA4Sheet(pages[safePageIndex] || "", safePageIndex)}
-
-                          {/* BARRA DE NAVEGAÇÃO LINDA, CLARA E MODERNA NO RODAPÉ DA PÁGINA */}
-                          <div className="sticky bottom-4 z-30 mt-6 flex items-center justify-center gap-3 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.25)] border border-gray-200 select-none print:hidden animate-in fade-in slide-in-from-bottom-2">
-                            <button
-                              onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))}
-                              disabled={safePageIndex === 0}
-                              title="Página Anterior (←)"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            >
-                              <ChevronLeft className="w-4 h-4 text-blue-600 stroke-[3]" />
-                              <span>Anterior</span>
-                            </button>
-
-                            <div className="h-4 w-px bg-gray-200" />
-
-                            <div className="flex items-center gap-1.5 px-2">
-                              <span className="text-xs font-bold text-gray-800">
-                                Página <span className="text-blue-600 font-extrabold">{safePageIndex + 1}</span> de <span className="text-gray-500">{totalPages}</span>
-                              </span>
-                            </div>
-
-                            <div className="h-4 w-px bg-gray-200" />
-
-                            <button
-                              onClick={() => setCurrentPageIndex(p => Math.min(totalPages - 1, p + 1))}
-                              disabled={safePageIndex >= totalPages - 1}
-                              title="Próxima Página (→)"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            >
-                              <span>Próxima</span>
-                              <ChevronRight className="w-4 h-4 text-blue-600 stroke-[3]" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      {/* DOCUMENTO CONTÍNUO COM TODAS AS PÁGINAS A4 EMPILHADAS */}
+                      <div className="w-full flex flex-col items-center gap-6">
+                        {pages.map((pText, idx) => renderSingleA4Sheet(pText, idx))}
+                      </div>
 
                     </div>
                   );
