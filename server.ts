@@ -289,37 +289,35 @@ async function startServer() {
 
       // PASSO 1: Geração de Conteúdo por IA
       let generatedText = await generateFromText(instruction, req);
+      console.log("[EMIA] Texto gerado com sucesso. Tamanho:", (generatedText || "").length, "caracteres");
 
-      // PASSO 2a: Filtro Determinístico de Varredura (Remoção de qualquer vazamento de instrução, prompt ou clichê)
-      generatedText = (generatedText || "")
-        .replace(/^```[a-z]*\n?/gm, "")
-        .replace(/```$/gm, "")
-        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*|Como um assistente.*|Entendido.*)$/gim, "")
-        .replace(/REGRA ABSOLUTA.*?(\n\n|$)/gis, "")
-        .replace(/DIRETRIZ.*?(\n\n|$)/gis, "")
-        .replace(/IMPORTANTE:.*?(\n\n|$)/gis, "")
-        .replace(/ID de variação estocástica:.*?(\n\n|$)/gis, "")
-        .replace(/Instruções adicionais detalhadas:.*?(\n\n|$)/gis, "")
-        .replace(/Siga a estrutura padrão acadêmica.*?(\n\n|$)/gis, "")
-        .replace(/\b(Contudo,)\b/gi, "No entanto,")
-        .replace(/\b(Diante disso,)\b/gi, "Assim,")
-        .replace(/\b(No panorama atual,)\b/gi, "Atualmente,")
-        .replace(/\b(Vale ressaltar que)\b/gi, "Nota-se que")
-        .replace(/\b(É importante notar que)\b/gi, "Observa-se que")
-        .replace(/\b(Podemos concluir que)\b/gi, "Dessa forma,")
-        .replace(/\b(Em suma,)\b/gi, "Em síntese,")
-        .replace(/\b(Desde os primórdios,)\b/gi, "Historicamente,")
-        .trim();
+      // PASSO 2: Filtro de limpeza SEGURO (remove APENAS linhas problemáticas, NUNCA o documento inteiro)
+      if (generatedText && generatedText.trim()) {
+        generatedText = generatedText
+          .replace(/^```[a-z]*\n?/gm, "")
+          .replace(/```$/gm, "")
+          .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*|Como um assistente.*|Entendido.*)$/gim, "")
+          .replace(/^.*REGRA ABSOLUTA.*$/gim, "")
+          .replace(/^.*ID de variação estocástica.*$/gim, "")
+          .replace(/^.*Instruções adicionais detalhadas.*$/gim, "")
+          .replace(/^.*Siga a estrutura padrão acadêmica.*$/gim, "")
+          .replace(/\b(Contudo,)\b/gi, "No entanto,")
+          .replace(/\b(Diante disso,)\b/gi, "Assim,")
+          .replace(/\b(No panorama atual,)\b/gi, "Atualmente,")
+          .replace(/\b(Vale ressaltar que)\b/gi, "Nota-se que")
+          .replace(/\b(É importante notar que)\b/gi, "Observa-se que")
+          .replace(/\b(Podemos concluir que)\b/gi, "Dessa forma,")
+          .replace(/\b(Em suma,)\b/gi, "Em síntese,")
+          .replace(/\b(Desde os primórdios,)\b/gi, "Historicamente,")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+      }
 
-      // Varredura final de segurança
-      generatedText = generatedText
-        .replace(/^```[a-z]*\n?/gm, "")
-        .replace(/```$/gm, "")
-        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*)$/gim, "")
-        .replace(/REGRA ABSOLUTA.*$/gims, "")
-        .replace(/DIRETRIZ.*$/gims, "")
-        .replace(/Instruções adicionais.*$/gims, "")
-        .trim();
+      // REDE DE SEGURANÇA: Se após a filtragem o texto ficou vazio, regenera com fallback
+      if (!generatedText || generatedText.trim().length < 50) {
+        console.warn("[EMIA] ALERTA: Texto ficou vazio após filtragem. Ativando fallback de contingência.");
+        generatedText = generateDynamicAcademicText(title || prompt || "tema acadêmico", selectedType);
+      }
 
       // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) + Corpo Completo (Págs 3+)
       if (!generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
