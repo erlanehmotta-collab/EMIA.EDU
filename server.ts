@@ -204,8 +204,12 @@ async function startServer() {
       }
     }
 
-    // 4. Contingência Acadêmica Inteligente com Altíssima Variabilidade Estocástica (Garante 100% de tempo de resposta sem falhas)
-    return generateDynamicAcademicText(prompt, isDocument ? "trabalho acadêmico" : "texto explicativo");
+    // 4. Contingência Acadêmica (Garante 100% de tempo de resposta sem falhas)
+    // Extrai apenas o tema limpo do prompt (nunca passa a instrução inteira como tópico)
+    const topicMatch = prompt.match(/sobre o tema\s+"([^"]+)"/i) || prompt.match(/sobre\s+"([^"]+)"/i);
+    const cleanTopic = topicMatch ? topicMatch[1] : (prompt.substring(0, 80).replace(/Crie.*?sobre/i, "").trim() || "tema acadêmico");
+    console.log("[EMIA] Nenhuma API de IA disponível. Usando fallback para o tema:", cleanTopic);
+    return generateDynamicAcademicText(cleanTopic, isDocument ? "trabalho acadêmico" : "texto explicativo");
   }
 
   app.post("/api/generate", upload.array("files"), async (req, res) => {
