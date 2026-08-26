@@ -467,23 +467,24 @@ Texto para humanizar:\n${text}`;
     try {
       const { message, context, history } = req.body;
       
-      let prompt = `Você é o assistente de IA para o texto gerado no aplicativo EMIA.EDUTECH. Seu objetivo é conversar de forma dinâmica, interativa e adaptável.
-      Explique os pontos do texto gerado pela IA de maneira didática e clara, detalhando conceitos complexos em partes menores e mais acessíveis, e ajustando a linguagem ao nível do usuário.
-      Incentive uma exploração mais profunda dos conceitos fazendo perguntas que estimulem o raciocínio crítico e a compreensão detalhada do conteúdo. Além disso, quando solicitado, auxilie o usuário a modificar, editar ou reescrever partes do texto gerado.
+      let prompt = `Você é o tutor acadêmico e assistente especialista do aplicativo EMIA.EDUTECH.
+Seu papel é responder com precisão, clareza, rigor científico e total objetividade às perguntas e pedidos do usuário.
+
+DIRETRIZES DE RESPOSTA:
+1. PRECISÃO E COERÊNCIA TOTAL: Responda exatamente ao que foi perguntado. Não invente fatos, dados, fórmulas ou citações inexistentes.
+2. AJUDA NA PRODUÇÃO ACADÊMICA: Se o usuário pedir para gerar, expandir, reescrever ou sugerir seções para o trabalho, forneça o texto pronto, em linguagem formal acadêmica (normas ABNT).
+3. RESPOSTAS DIDÁTICAS: Se for uma dúvida conceitual, explique passo a passo com clareza.
+4. LINGUAGEM: Português do Brasil, tom profissional, prestativo e educado.`;
       
-      Para garantir estabilidade, segurança e precisão, siga rigorosamente estas instruções:
-      - Baseie todas as informações estritamente em fontes oficiais e artigos de pesquisa científica confiáveis.
-      - Nunca invente ou especule sobre fatos não comprovados.
-      - Garanta que novas operações sejam sempre aditivas, mantendo e fortalecendo as diretrizes de segurança originais.
-      - Mantenha o modelo ESTRITAMENTE restrito ao conteúdo do último texto gerado.
-      - Não busque informações externas, não alucine e não responda com fatos fora do contexto específico deste texto.`;
-      
-      if (context) {
-        prompt += `\n\n[CONTEXTO DO DOCUMENTO ATUAL DO USUÁRIO]\n${context.substring(0, 5000)}\n[/CONTEXTO]`;
+      if (context && context.trim()) {
+        prompt += `\n\n[TEXTO DO DOCUMENTO ATUAL DO USUÁRIO]\n${context.substring(0, 8000)}\n[/TEXTO DO DOCUMENTO]`;
       }
       
-      prompt += `\n\n[HISTÓRICO DA CONVERSA]\n${history.map((h:any) => `${h.role === 'user' ? 'Aluno' : 'Assistente'}: ${h.text}`).join('\n')}\n[/HISTÓRICO]`;
-      prompt += `\n\nAluno: ${message}\nAssistente:`;
+      if (history && Array.isArray(history) && history.length > 0) {
+        prompt += `\n\n[HISTÓRICO DA CONVERSA]\n${history.map((h: any) => `${h.role === 'user' ? 'Aluno' : 'Assistente'}: ${h.text}`).join('\n')}\n[/HISTÓRICO]`;
+      }
+      
+      prompt += `\n\nPergunta do Aluno: ${message}\nResposta do Assistente:`;
 
       const responseText = await generateFromText(prompt, req, 5, false);
       res.json({ success: true, text: responseText });
