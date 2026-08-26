@@ -1726,7 +1726,35 @@ export default function App() {
             </div>
 
             {/* Ações Rápidas de Exportação e Validação no Topo */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Seletor de Modo: Livro vs Contínuo */}
+              <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 mr-1">
+                <button
+                  onClick={() => setViewLayout("book")}
+                  title="Modo Livro (Página por página)"
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${
+                    viewLayout === "book"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Livro</span>
+                </button>
+                <button
+                  onClick={() => setViewLayout("continuous")}
+                  title="Modo Contínuo (Todas as páginas estilo Word/PDF)"
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${
+                    viewLayout === "continuous"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Contínuo</span>
+                </button>
+              </div>
+
               <Button 
                 onClick={() => setIsStageExpanded(!isStageExpanded)} 
                 variant="outline" 
@@ -1792,65 +1820,17 @@ export default function App() {
                   const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
                   const totalPages = pages.length;
                   const safePageIndex = Math.min(Math.max(0, currentPageIndex), totalPages - 1);
-                  const pageText = pages[safePageIndex] || "";
-                  const isCover = safePageIndex === 0;
-                  const isTitlePage = safePageIndex === 1;
-                  const isBodyPage = safePageIndex >= 2;
-                  const pageNum = safePageIndex + 1;
-                  const lines = pageText.split("\n").map(l => l.trim()).filter(Boolean);
 
-                  return (
-                    <div className="flex-1 w-full h-full flex flex-col items-center justify-start py-6 px-3 md:px-8 pb-24 relative overflow-y-auto overflow-x-hidden select-text">
-                      
-                      {/* SETA ESQUERDA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
-                      <button
-                        onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))}
-                        disabled={safePageIndex === 0}
-                        title="Página Anterior (Seta Esquerda)"
-                        className="fixed left-4 lg:left-[calc(20rem+1.5rem)] top-1/2 -translate-y-1/2 z-30 bg-white/95 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-3 rounded-full disabled:opacity-10 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
-                      >
-                        <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
-                      </button>
+                  const renderSingleA4Sheet = (text: string, pIdx: number) => {
+                    const isCover = pIdx === 0;
+                    const isTitlePage = pIdx === 1;
+                    const isBodyPage = pIdx >= 2;
+                    const pageNum = pIdx + 1;
+                    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-                      {/* SETA DIREITA FLUTUANTE (PASSADOR ESTILO LIVRO) */}
-                      <button
-                        onClick={() => setCurrentPageIndex(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={safePageIndex >= totalPages - 1}
-                        title="Próxima Página (Seta Direita)"
-                        className="fixed right-6 top-1/2 -translate-y-1/2 z-30 bg-white/95 hover:bg-white text-gray-800 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-500 shadow-2xl p-3 rounded-full disabled:opacity-10 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 group print:hidden"
-                      >
-                        <ChevronRight className="w-6 h-6 stroke-[2.5]" />
-                      </button>
-
-                      {/* BOTÃO PARA AUMENTAR OU DIMINUIR A PÁGINA NO PALCO */}
-                      <div className="fixed right-6 bottom-24 z-30 flex items-center bg-white/95 backdrop-blur border border-gray-300 shadow-2xl rounded-2xl p-1 gap-1 select-none print:hidden">
-                        <button
-                          onClick={() => setZoomScale(z => Math.max(40, z - 10))}
-                          title="Diminuir Página (Zoom -)"
-                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
-                        >
-                          <ZoomOut className="w-4 h-4 stroke-[2.5]" />
-                        </button>
-                        
-                        <button
-                          onClick={() => setZoomScale(100)}
-                          title="Ajuste ao Palco (100%)"
-                          className="px-2.5 py-1 text-xs font-extrabold text-gray-800 hover:text-blue-600 hover:bg-gray-100 rounded-xl"
-                        >
-                          {zoomScale}%
-                        </button>
-                        
-                        <button
-                          onClick={() => setZoomScale(z => Math.min(160, z + 10))}
-                          title="Aumentar Página (Zoom +)"
-                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
-                        >
-                          <ZoomIn className="w-4 h-4 stroke-[2.5]" />
-                        </button>
-                      </div>
-
-                      {/* FOLHA A4 OFICIAL PADRÃO WORD / PDF (PROPORÇÃO EXATA 210 x 297mm) */}
+                    return (
                       <div 
+                        key={pIdx}
                         style={{ 
                           width: 'min(100%, 794px)',
                           minHeight: '100%',
@@ -1858,7 +1838,7 @@ export default function App() {
                           transform: zoomScale !== 100 ? `scale(${zoomScale / 100})` : undefined,
                           transformOrigin: 'top center',
                         }}
-                        className="bg-white text-gray-900 shadow-[0_8px_30px_rgba(0,0,0,0.35)] ring-1 ring-black/10 rounded-[2px] relative flex flex-col p-[8%_6%_6%_8%] transition-transform select-text my-auto shrink-0 print:shadow-none print:ring-0 print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
+                        className="bg-white text-gray-900 shadow-[0_8px_30px_rgba(0,0,0,0.35)] ring-1 ring-black/10 rounded-[2px] relative flex flex-col p-[8%_6%_6%_8%] transition-transform select-text my-4 shrink-0 print:shadow-none print:ring-0 print:m-0 print:h-[297mm] print:w-[210mm] print:break-after-page"
                       >
                         {/* NUMERAÇÃO OFICIAL IMPRESSA NO CANTO SUPERIOR DIREITO */}
                         {isBodyPage && (
@@ -1953,10 +1933,10 @@ export default function App() {
                           /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT */
                           <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text">
                             <textarea
-                              value={pageText.trimStart()}
+                              value={text.trimStart()}
                               onChange={(e) => {
                                 const newPages = [...pages];
-                                newPages[safePageIndex] = e.target.value;
+                                newPages[pIdx] = e.target.value;
                                 setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
                               }}
                               className="flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm sm:text-base indent-8 bg-transparent min-h-[500px]"
@@ -1964,6 +1944,83 @@ export default function App() {
                           </div>
                         )}
                       </div>
+                    );
+                  };
+
+                  return (
+                    <div className="flex-1 w-full h-full flex flex-col items-center justify-start py-6 px-3 md:px-8 pb-24 relative overflow-y-auto overflow-x-hidden select-text">
+                      
+                      {/* BOTÃO PARA AUMENTAR OU DIMINUIR A PÁGINA NO PALCO */}
+                      <div className="fixed right-6 bottom-24 z-30 flex items-center bg-white/95 backdrop-blur border border-gray-300 shadow-2xl rounded-2xl p-1 gap-1 select-none print:hidden">
+                        <button
+                          onClick={() => setZoomScale(z => Math.max(40, z - 10))}
+                          title="Diminuir Página (Zoom -)"
+                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                        >
+                          <ZoomOut className="w-4 h-4 stroke-[2.5]" />
+                        </button>
+                        
+                        <button
+                          onClick={() => setZoomScale(100)}
+                          title="Ajuste ao Palco (100%)"
+                          className="px-2.5 py-1 text-xs font-extrabold text-gray-800 hover:text-blue-600 hover:bg-gray-100 rounded-xl"
+                        >
+                          {zoomScale}%
+                        </button>
+                        
+                        <button
+                          onClick={() => setZoomScale(z => Math.min(160, z + 10))}
+                          title="Aumentar Página (Zoom +)"
+                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                        >
+                          <ZoomIn className="w-4 h-4 stroke-[2.5]" />
+                        </button>
+                      </div>
+
+                      {/* RENDERIZAÇÃO: MODO CONTÍNUO (TODAS AS PÁGINAS) OU MODO LIVRO (PÁGINA ATIVA) */}
+                      {viewLayout === "continuous" ? (
+                        <div className="w-full flex flex-col items-center gap-6">
+                          {pages.map((pText, idx) => renderSingleA4Sheet(pText, idx))}
+                        </div>
+                      ) : (
+                        <div className="w-full flex flex-col items-center">
+                          {renderSingleA4Sheet(pages[safePageIndex] || "", safePageIndex)}
+
+                          {/* BARRA DE NAVEGAÇÃO LINDA, CLARA E MODERNA NO RODAPÉ DA PÁGINA */}
+                          <div className="sticky bottom-4 z-30 mt-6 flex items-center justify-center gap-3 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.25)] border border-gray-200 select-none print:hidden animate-in fade-in slide-in-from-bottom-2">
+                            <button
+                              onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))}
+                              disabled={safePageIndex === 0}
+                              title="Página Anterior (←)"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            >
+                              <ChevronLeft className="w-4 h-4 text-blue-600 stroke-[3]" />
+                              <span>Anterior</span>
+                            </button>
+
+                            <div className="h-4 w-px bg-gray-200" />
+
+                            <div className="flex items-center gap-1.5 px-2">
+                              <span className="text-xs font-bold text-gray-800">
+                                Página <span className="text-blue-600 font-extrabold">{safePageIndex + 1}</span> de <span className="text-gray-500">{totalPages}</span>
+                              </span>
+                            </div>
+
+                            <div className="h-4 w-px bg-gray-200" />
+
+                            <button
+                              onClick={() => setCurrentPageIndex(p => Math.min(totalPages - 1, p + 1))}
+                              disabled={safePageIndex >= totalPages - 1}
+                              title="Próxima Página (→)"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            >
+                              <span>Próxima</span>
+                              <ChevronRight className="w-4 h-4 text-blue-600 stroke-[3]" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   );
                 })()}
