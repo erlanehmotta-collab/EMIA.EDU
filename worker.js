@@ -9,15 +9,8 @@
  * 5. Returns the generated response back to the application.
  */
 
-export interface Env {
-  // Cloudflare KV Namespace to securely map Google Email -> User Gemini API Key
-  USER_KEYS_KV: KVNamespace;
-  // Optional Master Fallback API Key stored as Cloudflare Secret
-  MASTER_GEMINI_KEY?: string;
-}
-
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request, env, ctx) {
     // 1. Handle CORS Preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
