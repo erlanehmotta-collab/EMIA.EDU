@@ -44,7 +44,7 @@ export default function App() {
     return saved !== null ? parseInt(saved, 10) : 5;
   });
   const [showPixModal, setShowPixModal] = useState(false);
-  const [selectedPixPlan, setSelectedPixPlan] = useState<'basic' | 'pro'>('pro');
+  const [selectedPixPlan, setSelectedPixPlan] = useState<'single' | 'trio' | 'pro'>('trio');
   const [pixCopied, setPixCopied] = useState(false);
   const [activationCode, setActivationCode] = useState("");
   const [activationSuccess, setActivationSuccess] = useState(false);
@@ -2195,59 +2195,88 @@ export default function App() {
             
             <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
               
-              {/* SELEÇÃO DOS PACOTES */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Pacote Básico: R$ 5 = 3 Trabalhos */}
+              {/* SELEÇÃO DOS 3 PACOTES */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Pacote 1: R$ 1,99 = 1 Trabalho */}
                 <div 
-                  onClick={() => setSelectedPixPlan('basic')}
-                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
-                    selectedPixPlan === 'basic' 
-                      ? 'border-blue-600 bg-blue-50/50 shadow-sm' 
+                  onClick={() => setSelectedPixPlan('single')}
+                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
+                    selectedPixPlan === 'single' 
+                      ? 'border-blue-600 bg-blue-50/60 shadow-sm ring-1 ring-blue-500' 
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div>
-                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Básico</span>
-                    <h3 className="text-lg font-black text-gray-900 mt-0.5">3 Trabalhos</h3>
-                    <p className="text-xs text-gray-500 mt-1">Apenas R$ 5,00</p>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">Avulso</span>
+                    <h3 className="text-sm font-black text-gray-900 mt-0.5">1 Trabalho</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">R$ 1,99</p>
                   </div>
-                  <div className="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-700">R$ 5,00</span>
+                  <div className="mt-2 pt-1.5 border-t border-gray-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-800">R$ 1,99</span>
                     <input 
                       type="radio" 
                       name="pixPlan" 
-                      checked={selectedPixPlan === 'basic'} 
-                      onChange={() => setSelectedPixPlan('basic')}
+                      checked={selectedPixPlan === 'single'} 
+                      onChange={() => setSelectedPixPlan('single')}
                       className="text-blue-600"
                     />
                   </div>
                 </div>
 
-                {/* Pacote Pro: R$ 10 = 7 Trabalhos */}
+                {/* Pacote 2: R$ 5,00 = 3 Trabalhos */}
                 <div 
-                  onClick={() => setSelectedPixPlan('pro')}
-                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
-                    selectedPixPlan === 'pro' 
-                      ? 'border-blue-600 bg-blue-50/50 shadow-sm' 
+                  onClick={() => setSelectedPixPlan('trio')}
+                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
+                    selectedPixPlan === 'trio' 
+                      ? 'border-blue-600 bg-blue-50/60 shadow-sm ring-1 ring-blue-500' 
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
-                  <span className="absolute -top-2.5 right-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase">
-                    Mais Popular
+                  <span className="absolute -top-2 right-1.5 bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">
+                    Econômico
                   </span>
                   <div>
-                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Avançado</span>
-                    <h3 className="text-lg font-black text-gray-900 mt-0.5">7 Trabalhos</h3>
-                    <p className="text-xs text-gray-500 mt-1">Apenas R$ 10,00</p>
+                    <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Trio</span>
+                    <h3 className="text-sm font-black text-gray-900 mt-0.5">3 Trabalhos</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">R$ 1,66/un</p>
                   </div>
-                  <div className="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-700">R$ 10,00</span>
+                  <div className="mt-2 pt-1.5 border-t border-gray-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-blue-700">R$ 5,00</span>
+                    <input 
+                      type="radio" 
+                      name="pixPlan" 
+                      checked={selectedPixPlan === 'trio'} 
+                      onChange={() => setSelectedPixPlan('trio')}
+                      className="text-blue-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Pacote 3: R$ 9,90 = 7 Trabalhos */}
+                <div 
+                  onClick={() => setSelectedPixPlan('pro')}
+                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
+                    selectedPixPlan === 'pro' 
+                      ? 'border-amber-500 bg-amber-50/60 shadow-sm ring-1 ring-amber-500' 
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <span className="absolute -top-2 right-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">
+                    Popular
+                  </span>
+                  <div>
+                    <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Semestre</span>
+                    <h3 className="text-sm font-black text-gray-900 mt-0.5">7 Trabalhos</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">R$ 1,41/un</p>
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-gray-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-800">R$ 9,90</span>
                     <input 
                       type="radio" 
                       name="pixPlan" 
                       checked={selectedPixPlan === 'pro'} 
                       onChange={() => setSelectedPixPlan('pro')}
-                      className="text-blue-600"
+                      className="text-amber-600"
                     />
                   </div>
                 </div>
@@ -2260,7 +2289,7 @@ export default function App() {
                     Chave PIX Oficial (E-mail):
                   </label>
                   <span className="text-xs font-bold text-blue-700">
-                    Valor: {selectedPixPlan === 'basic' ? 'R$ 5,00' : 'R$ 10,00'}
+                    Valor: {selectedPixPlan === 'single' ? 'R$ 1,99' : selectedPixPlan === 'trio' ? 'R$ 5,00' : 'R$ 9,90'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2295,7 +2324,7 @@ export default function App() {
               {/* QR Code */}
               <div className="text-center bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
                 <p className="text-xs font-semibold text-gray-600 mb-2">
-                  Pague {selectedPixPlan === 'basic' ? 'R$ 5,00 (3 Trabalhos)' : 'R$ 10,00 (7 Trabalhos)'} pelo app do banco:
+                  Pague {selectedPixPlan === 'single' ? 'R$ 1,99 (1 Trabalho)' : selectedPixPlan === 'trio' ? 'R$ 5,00 (3 Trabalhos)' : 'R$ 9,90 (7 Trabalhos)'} pelo app do banco:
                 </p>
                 <img 
                   src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=erlanehmotta@gmail.com" 
@@ -2309,12 +2338,12 @@ export default function App() {
               <div className="pt-2">
                 {activationSuccess ? (
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-2xl text-center font-bold animate-in fade-in">
-                    🎉 PIX Reconhecido! +{selectedPixPlan === 'basic' ? '3' : '7'} Trabalhos Liberados com Sucesso!
+                    🎉 PIX Confirmado! +{selectedPixPlan === 'single' ? '1' : selectedPixPlan === 'trio' ? '3' : '7'} Trabalho(s) Liberado(s)!
                   </div>
                 ) : (
                   <Button
                     onClick={() => {
-                      const addedCredits = selectedPixPlan === 'basic' ? 3 : 7;
+                      const addedCredits = selectedPixPlan === 'single' ? 1 : selectedPixPlan === 'trio' ? 3 : 7;
                       setCredits(prev => {
                         const next = prev + addedCredits;
                         localStorage.setItem("emia_credits", String(next));
@@ -2329,7 +2358,7 @@ export default function App() {
                     className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs md:text-sm shadow-md shadow-emerald-500/25 active:scale-[0.98] transition-all"
                   >
                     <CheckCircle className="w-4 h-4 mr-2 text-white" />
-                    Já fiz o PIX / Liberar Acesso Agora ({selectedPixPlan === 'basic' ? '+3 Trabalhos' : '+7 Trabalhos'})
+                    Já fiz o PIX / Liberar Agora ({selectedPixPlan === 'single' ? '+1 Trabalho' : selectedPixPlan === 'trio' ? '+3 Trabalhos' : '+7 Trabalhos'})
                   </Button>
                 )}
               </div>
