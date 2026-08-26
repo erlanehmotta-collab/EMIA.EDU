@@ -571,6 +571,39 @@ export default function App() {
     }
   };
 
+  const handleCorrectSpelling = async () => {
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Por favor, gere ou insira um texto para verificar e corrigir a ortografia.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/correct-spelling", {
+        method: "POST",
+        headers: getApiHeaders(),
+        body: JSON.stringify({ text: generatedText }),
+      });
+      const textData = await res.text();
+      let data;
+      try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+      if (data.success) {
+        setGeneratedText(data.text);
+        setActiveTab("editor");
+        logAction("Correção Ortográfica e Gramatical Aplicada", data.text);
+        setErrorMessage("✅ Ortografia, gramática e concordâncias corrigidas com sucesso!");
+        setTimeout(() => setErrorMessage(""), 3500);
+      } else {
+        setErrorMessage(data.error || "Falha ao corrigir ortografia.");
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao corrigir ortografia.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCheckAuthenticity = async () => {
     if (!generatedText) return;
     setIsLoading(true);
@@ -1728,6 +1761,16 @@ export default function App() {
             {/* Ações Rápidas de Exportação e Validação no Topo */}
             <div className="flex items-center gap-1.5 flex-wrap">
               <Button 
+                onClick={handleCorrectSpelling} 
+                disabled={isLoading || !generatedText} 
+                variant="outline" 
+                size="sm" 
+                className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8"
+              >
+                {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />}
+                ✍️ Arrumar Ortografia
+              </Button>
+              <Button 
                 onClick={handleCheckAuthenticity} 
                 disabled={isLoading || !generatedText} 
                 variant="outline" 
@@ -1785,8 +1828,17 @@ export default function App() {
                   if (generatedText && generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
                     pages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
                   } else if (generatedText && generatedText.trim()) {
+                    let bodyContent = generatedText;
+                    let referencesContent = "";
+
+                    const refMatch = bodyContent.match(/\n\s*(?:#+\s*)?(?:REFERÊNCIAS(?:\s+BIBLIOGRÁFICAS)?|REFERENCIAS)\s*\n([\s\S]*)$/i);
+                    if (refMatch) {
+                      referencesContent = `REFERÊNCIAS\n\n${refMatch[1].trim()}`;
+                      bodyContent = bodyContent.substring(0, refMatch.index).trim();
+                    }
+
                     // Divide o texto em blocos de páginas A4 (~2200 caracteres cada)
-                    const paragraphs = generatedText.split(/\n\n+/);
+                    const paragraphs = bodyContent.split(/\n\n+/);
                     const bodyPages: string[] = [];
                     let curPage = "";
                     for (const para of paragraphs) {
@@ -1798,6 +1850,10 @@ export default function App() {
                       }
                     }
                     if (curPage.trim()) bodyPages.push(curPage.trim());
+
+                    if (referencesContent) {
+                      bodyPages.push(referencesContent);
+                    }
 
                     pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ...bodyPages];
                   } else {
@@ -1835,14 +1891,16 @@ export default function App() {
                               >
                                 {institution || (lines[0] !== "CAPA_AUTO" ? lines[0] : "") || "NOME DA INSTITUIÇÃO DE ENSINO"}
                               </div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setCourse(e.currentTarget.innerText.trim())}
-                                className="font-semibold text-xs sm:text-sm uppercase text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {course || (lines[1] && lines[1] !== lines[0] && lines[1] !== "CAPA_AUTO" ? lines[1] : "") || "NOME DO CURSO / DEPARTAMENTO"}
-                              </div>
+                              {((course && course.trim()) || (lines[1] && lines[1] !== lines[0] && lines[1] !== "CAPA_AUTO" && lines[1].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setCourse(e.currentTarget.innerText.trim())}
+                                  className="font-semibold text-xs sm:text-sm uppercase text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {course || lines[1]}
+                                </div>
+                              )}
                             </div>
 
                             <div className="my-auto py-6">
@@ -1865,14 +1923,16 @@ export default function App() {
                               >
                                 {title || (lines[3] && lines[3] !== "CAPA_AUTO" ? lines[3] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setSubtitle(e.currentTarget.innerText.trim())}
-                                className="font-normal text-xs sm:text-sm text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {subtitle || (lines[4] && lines[4] !== "CAPA_AUTO" ? lines[4] : "") || "Subtítulo do trabalho (opcional)"}
-                              </div>
+                              {((subtitle && subtitle.trim()) || (lines[4] && lines[4] !== "CAPA_AUTO" && lines[4].trim())) && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setSubtitle(e.currentTarget.innerText.trim())}
+                                  className="font-normal text-xs sm:text-sm text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {subtitle || lines[4]}
+                                </div>
+                              )}
                             </div>
 
                             <div className="mt-auto pt-6">
@@ -1917,14 +1977,16 @@ export default function App() {
                               >
                                 {title || (lines[1] && lines[1] !== "FOLHA_ROSTO_AUTO" ? lines[1] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </div>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                onBlur={(e) => setSubtitle(e.currentTarget.innerText.trim())}
-                                className="font-normal text-xs sm:text-sm text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
-                              >
-                                {subtitle || "Subtítulo do trabalho (opcional)"}
-                              </div>
+                              {subtitle && subtitle.trim() && (
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => setSubtitle(e.currentTarget.innerText.trim())}
+                                  className="font-normal text-xs sm:text-sm text-gray-700 mt-1 focus:outline-none focus:bg-blue-50/50 p-1 rounded"
+                                >
+                                  {subtitle}
+                                </div>
+                              )}
                             </div>
 
                             <div className="my-auto w-full flex justify-end">

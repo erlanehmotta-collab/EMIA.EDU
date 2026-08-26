@@ -299,8 +299,18 @@ Texto bruto para sanitização estocástica:
         const coverPage = `${instName}${courseName ? `\n${courseName}` : ""}\n\n\n\n${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
         const titlePage = `${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n                                          ${docType} apresentado à ${instName}${courseName ? ` como requisito parcial de avaliação para o curso de ${courseName}` : ""}.\n${advText ? `\n                                          ${advText}` : ""}\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
 
-        // Segmenta o corpo do texto em páginas de tamanho A4 (~2400 caracteres por página)
-        const paragraphs = generatedText.split(/\n\n+/);
+        // Segmenta o corpo do texto garantindo que as REFERÊNCIAS fiquem em uma página 100% isolada
+        let bodyContent = generatedText;
+        let referencesContent = "";
+
+        // Procura por seções de referências
+        const refMatch = bodyContent.match(/\n\s*(?:#+\s*)?(?:REFERÊNCIAS(?:\s+BIBLIOGRÁFICAS)?|REFERENCIAS)\s*\n([\s\S]*)$/i);
+        if (refMatch) {
+          referencesContent = `REFERÊNCIAS\n\n${refMatch[1].trim()}`;
+          bodyContent = bodyContent.substring(0, refMatch.index).trim();
+        }
+
+        const paragraphs = bodyContent.split(/\n\n+/);
         const bodyPages: string[] = [];
         let curPage = "";
         for (const para of paragraphs) {
@@ -313,6 +323,10 @@ Texto bruto para sanitização estocástica:
         }
         if (curPage.trim()) {
           bodyPages.push(curPage.trim());
+        }
+
+        if (referencesContent) {
+          bodyPages.push(referencesContent);
         }
 
         generatedText = `${coverPage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${titlePage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${bodyPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n")}`;
@@ -352,6 +366,38 @@ Texto bruto para sanitização estocástica:
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha ao extrair textos" });
+    }
+  });
+
+  app.post("/api/correct-spelling", async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text || !text.trim()) {
+        return res.status(400).json({ success: false, error: "Texto não fornecido para correção ortográfica." });
+      }
+
+      const instruction = `Atue como um revisor profissional de língua portuguesa e normas gramaticais/acadêmicas.
+Sua tarefa é CORRIGIR e REVISAR meticulosamente a ortografia, acentuação, concordância verbal/nominal, regência, crase e pontuação do texto a seguir.
+
+DIRETRIZES:
+1. Corrija todos os erros ortográficos e de pontuação de acordo com o Novo Acordo Ortográfico da Língua Portuguesa.
+2. Preserve rigorosamente o sentido original, o estilo do autor e qualquer marcação como "--- [QUEBRA DE PÁGINA] ---" ou nomes próprios.
+3. Retorne APENAS o texto devidamente corrigido, sem adicionar saudações, introduções ou notas de revisão.
+
+Texto para revisão ortográfica e gramatical:
+\n${text}`;
+
+      let correctedText = await generateFromText(instruction, req, 5, true);
+      correctedText = (correctedText || "")
+        .replace(/^```[a-z]*\n?/gm, "")
+        .replace(/```$/gm, "")
+        .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o texto corrigido.*|Revisão realizada:.*)$/gim, "")
+        .trim();
+
+      res.json({ success: true, text: correctedText });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Falha na correção ortográfica" });
     }
   });
 
