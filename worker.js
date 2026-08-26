@@ -1,171 +1,94 @@
 /**
- * Cloudflare Worker for EMIA.EDU
- * 
- * Flow:
- * 1. Listens for incoming HTTP requests from the mobile / web application.
- * 2. Authenticates Google OAuth 2.0 access_token to verify user identity.
- * 3. Securely retrieves the user's stored Google Gemini API key from Cloudflare KV.
- * 4. Forwards the request (with the user's API key) to the Google AI (Gemini) service.
- * 5. Returns the generated response back to the application.
+ * Cloudflare Worker for EMIA.EDU / EMIA Edutech
+ * Handles API requests and serves static assets from Vite dist/
  */
 
 export default {
   async fetch(request, env, ctx) {
-    // 1. Handle CORS Preflight
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization, x-gemini-api-key, x-user-email",
-          "Access-Control-Max-Age": "86400",
-        },
-      });
-    }
-
     const url = new URL(request.url);
+
+    // Standard CORS Headers
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-gemini-api-key, x-user-email",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-gemini-api-key, x-google-api-key, x-ai-provider",
     };
 
-    // Health check
-    if (url.pathname === "/health" || url.pathname === "/") {
-      return new Response(JSON.stringify({ status: "online", service: "EMIA.EDU Cloudflare Worker" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Handle preflight CORS requests
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // Health check endpoint
+    if (url.pathname === "/api/health") {
+      return new Response(JSON.stringify({ status: "ok", app: "emia-edutech", timestamp: new Date().toISOString() }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
-    // 2. Authentication Layer: Verify Google OAuth Token
-    const authHeader = request.headers.get("Authorization") || "";
-    const googleToken = authHeader.replace(/^Bearer\s+/i, "").trim();
-
-    let userEmail: string | null = null;
-
-    if (googleToken && googleToken.length > 20) {
-      try {
-        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: `Bearer ${googleToken}` },
-        });
-
-        if (userInfoRes.ok) {
-          const userData: any = await userInfoRes.json();
-          userEmail = userData.email || null;
-        }
-      } catch (err) {
-        console.warn("[OAuth Verification Warning]:", err);
-      }
-    }
-
-    // Fallback: check custom user email header if OAuth token not sent directly
-    if (!userEmail) {
-      userEmail = request.headers.get("x-user-email");
-    }
-
-    // 3. Endpoint: Securely store / bind user's API Key to their Google Account in KV
-    if (url.pathname === "/api/save-user-key" && request.method === "POST") {
-      if (!userEmail) {
-        return new Response(JSON.stringify({ error: "Autenticação Google obrigatória." }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const body: any = await request.json().catch(() => ({}));
-      const apiKey = body.apiKey?.trim();
-
-      if (!apiKey || apiKey.length < 10) {
-        return new Response(JSON.stringify({ error: "Chave de API inválida." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (env.USER_KEYS_KV) {
-        await env.USER_KEYS_KV.put(`user_key:${userEmail}`, apiKey);
-      }
-
-      return new Response(JSON.stringify({ success: true, message: "Chave de API vinculada com sucesso à sua conta Google." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 4. Endpoint: Forward Generation Requests to Google AI (Gemini Service)
+    // AI Generation Proxy for Google Gemini
     if (url.pathname === "/api/generate" && request.method === "POST") {
       try {
-        const reqBody: any = await request.json();
-        const prompt = reqBody.prompt || "Escreva um trabalho acadêmico.";
-        const model = reqBody.model || "gemini-2.5-flash";
+        const body = await request.json();
+        const apiKey = request.headers.get("x-gemini-api-key") || 
+                       request.headers.get("x-google-api-key") || 
+                       env.GEMINI_API_KEY || 
+                       env.GOOGLE_API_KEY;
 
-        // Prioridade 1: MASTER_GEMINI_KEY (modelo SaaS — você paga, cobra do usuário)
-        let targetApiKey = env.MASTER_GEMINI_KEY || null;
-
-        // Prioridade 2: chave do usuário no header (opcional)
-        if (!targetApiKey) {
-          targetApiKey = request.headers.get("x-gemini-api-key");
+        if (!apiKey) {
+          return new Response(JSON.stringify({ error: "Chave Gemini não configurada." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders }
+          });
         }
 
-        // Prioridade 3: chave do usuário no KV (opcional)
-        if (!targetApiKey && userEmail && env.USER_KEYS_KV) {
-          targetApiKey = await env.USER_KEYS_KV.get(`user_key:${userEmail}`);
-        }
+        const model = body.model || "gemini-2.5-flash";
+        const prompt = body.prompt || "";
 
-        // A) Chama Google Gemini REST API usando a API Key resolvida
-        if (targetApiKey) {
-          const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${targetApiKey}`;
-          
-          const geminiResponse = await fetch(geminiApiUrl, {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.9,
-                topP: 0.95,
-              },
-            }),
-          });
-
-          if (!geminiResponse.ok) {
-            const errData = await geminiResponse.text();
-            return new Response(JSON.stringify({ success: false, error: `Google AI Error: ${errData}` }), {
-              status: geminiResponse.status,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const data: any = await geminiResponse.json();
-          const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-          return new Response(JSON.stringify({ success: true, text: generatedText }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Nenhuma credencial MASTER_GEMINI_KEY configurada no Cloudflare Worker." 
-          }), 
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+                temperature: body.temperature || 0.9,
+                topP: 0.95
+              }
+            })
           }
         );
 
-      } catch (err: any) {
-        return new Response(JSON.stringify({ success: false, error: err.message || "Erro interno no Worker" }), {
+        const data = await geminiRes.json();
+        return new Response(JSON.stringify(data), {
+          status: geminiRes.status,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message || "Erro no Worker" }), {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       }
     }
 
-    // Unmatched Route
-    return new Response(JSON.stringify({ error: "Rota não encontrada no Worker" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Serve Static Assets (Vite React app in dist/)
+    if (env.ASSETS) {
+      try {
+        const assetResponse = await env.ASSETS.fetch(request);
+        if (assetResponse.status !== 404) {
+          return assetResponse;
+        }
+        // SPA Fallback: serve index.html for unknown routes
+        return await env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
+      } catch (assetErr) {
+        console.error("Asset fetch error:", assetErr);
+      }
+    }
+
+    return new Response("EMIA.EDU Worker Online", {
+      headers: { "Content-Type": "text/plain", ...corsHeaders }
     });
-  },
+  }
 };

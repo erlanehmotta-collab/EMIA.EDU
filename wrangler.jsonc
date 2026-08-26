@@ -1,8 +1,13 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "emia-edutech",
+  "main": "worker.js",
   "compatibility_date": "2026-08-25",
-  "pages_build_output_dir": "dist",
   "compatibility_flags": [
     "nodejs_compat"
-  ]
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  }
 }
