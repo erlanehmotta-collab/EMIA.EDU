@@ -252,21 +252,25 @@ async function startServer() {
       const subtitleText = subtitle ? ` - Subtítulo: ${subtitle}` : "";
 
       const hasWorkData = studentName || course || institution || city || year || advisor;
+      let coverDataLines = "";
+      if (institution) coverDataLines += `\n      - Instituição: ${institution}`;
+      if (course) coverDataLines += `\n      - Curso: ${course}`;
+      if (studentName) coverDataLines += `\n      - Autor/Aluno: ${studentName}`;
+      if (title) coverDataLines += `\n      - Título: ${title}`;
+      if (subtitle) coverDataLines += `\n      - Subtítulo: ${subtitle}`;
+      if (advisor) coverDataLines += `\n      - Orientador: ${advisor}`;
+      if (city) coverDataLines += `\n      - Cidade: ${city}`;
+      if (year) coverDataLines += `\n      - Ano: ${year}`;
+
       const coverInstruction = hasWorkData ? `
       IMPORTANTE: Como os dados do trabalho foram fornecidos, INICIE o documento estruturando a Capa e a Folha de Rosto estritamente nas normas ABNT.
       Simule o espaçamento e a hierarquia visual usando quebras de linha e CAIXA ALTA onde necessário.
       - Capa: NOME DA INSTITUIÇÃO no topo (caixa alta), NOME DO CURSO (se houver, abaixo da instituição), NOME DO AUTOR em seguida (caixa alta), TÍTULO no meio da página (caixa alta e destaque), CIDADE e ANO na parte inferior.
-      - Folha de Rosto: NOME DO AUTOR no topo, TÍTULO no meio, Nota de apresentação (ex: "Trabalho apresentado...") simulando recuo com o Curso (${course}) e Orientador (${advisor}), CIDADE e ANO na parte inferior.
+      - Folha de Rosto: NOME DO AUTOR no topo, TÍTULO no meio, Nota de apresentação simulando recuo, CIDADE e ANO na parte inferior.
       - Adicione o marcador explícito "--- [QUEBRA DE PÁGINA] ---" entre a capa, a folha de rosto e o início do texto.
+      - REGRA ABSOLUTA: Se um campo NÃO foi informado abaixo, NÃO invente, NÃO coloque placeholder e NÃO escreva nada naquele espaço. Deixe em branco.
 
-      Utilize as informações:
-      - Instituição: ${institution || "Não informado"}
-      - Curso: ${course || "Não informado"}
-      - Autor/Aluno: ${studentName || "Não informado"}
-      - Título: ${title || "Não informado"}
-      - Orientador: ${advisor || "Não informado"}
-      - Cidade: ${city || "Não informado"}
-      - Ano: ${year || "Não informado"}
+      Dados fornecidos:${coverDataLines}
       ` : "";
 
       const instruction = `Crie um(a) ${selectedType} detalhado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
@@ -319,18 +323,48 @@ async function startServer() {
 
       // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) + Corpo Completo (Págs 3+)
       if (!generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
-        const instName = (institution || "NOME DA INSTITUIÇÃO DE ENSINO").toUpperCase();
+        const instName = institution ? institution.toUpperCase() : "";
         const courseName = course ? course.toUpperCase() : "";
-        const authorName = (studentName || "NOME DO AUTOR DO TRABALHO").toUpperCase();
-        const docTitle = (title || "TÍTULO DO TRABALHO ACADÊMICO").toUpperCase();
+        const authorName = studentName ? studentName.toUpperCase() : "";
+        const docTitle = title ? title.toUpperCase() : "";
         const docSubtitle = subtitle ? ` - ${subtitle}` : "";
-        const docCity = (city || "CIDADE - UF").toUpperCase();
-        const docYear = year || new Date().getFullYear().toString();
-        const docType = (documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO");
+        const docCity = city ? city.toUpperCase() : "";
+        const docYear = year || "";
+        const docType = documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO";
         const advText = advisor ? `Orientador(a): ${advisor}` : "";
 
-        const coverPage = `${instName}${courseName ? `\n${courseName}` : ""}\n\n\n\n${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
-        const titlePage = `${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n                                          ${docType} apresentado à ${instName}${courseName ? ` como requisito parcial de avaliação para o curso de ${courseName}` : ""}.\n${advText ? `\n                                          ${advText}` : ""}\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+        // CAPA: Só exibe os campos que foram preenchidos, campos vazios ficam 100% em branco
+        let coverParts: string[] = [];
+        if (instName) coverParts.push(instName);
+        if (courseName) coverParts.push(courseName);
+        coverParts.push(""); // espaço
+        if (authorName) coverParts.push("\n\n" + authorName);
+        coverParts.push(""); // espaço
+        if (docTitle) coverParts.push("\n\n\n\n" + docTitle + docSubtitle);
+        coverParts.push(""); // espaço
+        let coverFooter: string[] = [];
+        if (docCity) coverFooter.push(docCity);
+        if (docYear) coverFooter.push(docYear);
+        if (coverFooter.length > 0) coverParts.push("\n\n\n\n\n\n" + coverFooter.join("\n"));
+        const coverPage = coverParts.filter(p => p !== undefined).join("\n");
+
+        // FOLHA DE ROSTO: Mesma regra, sem placeholders
+        let titleParts: string[] = [];
+        if (authorName) titleParts.push(authorName);
+        titleParts.push(""); // espaço
+        if (docTitle) titleParts.push("\n\n\n\n" + docTitle + docSubtitle);
+        titleParts.push(""); // espaço
+        let notaApres = `${docType} apresentado à ${instName || "Instituição"}`;
+        if (courseName) notaApres += ` como requisito parcial de avaliação para o curso de ${courseName}`;
+        notaApres += ".";
+        titleParts.push("\n\n                                          " + notaApres);
+        if (advText) titleParts.push("                                          " + advText);
+        titleParts.push(""); // espaço
+        let titleFooter: string[] = [];
+        if (docCity) titleFooter.push(docCity);
+        if (docYear) titleFooter.push(docYear);
+        if (titleFooter.length > 0) titleParts.push("\n\n\n\n" + titleFooter.join("\n"));
+        const titlePage = titleParts.filter(p => p !== undefined).join("\n");
 
         // Segmenta o corpo do texto garantindo que as REFERÊNCIAS fiquem em uma página 100% isolada
         let bodyContent = generatedText;
