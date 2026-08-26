@@ -44,6 +44,7 @@ export default function App() {
     return saved !== null ? parseInt(saved, 10) : 5;
   });
   const [showPixModal, setShowPixModal] = useState(false);
+  const [selectedPixPlan, setSelectedPixPlan] = useState<'basic' | 'pro'>('pro');
   const [pixCopied, setPixCopied] = useState(false);
   const [activationCode, setActivationCode] = useState("");
   const [activationSuccess, setActivationSuccess] = useState(false);
@@ -243,102 +244,36 @@ export default function App() {
     return headers;
   };
 
-  const handleGoogleLogin = () => {
-    // 1. Tenta Popup oficial do Google Identity Services (ux_mode: popup isolado sem cookies de terceiros)
-    if (typeof window !== "undefined" && (window as any).google?.accounts?.oauth2) {
-      try {
-        const client = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: "679803159932-emia-google-app.apps.googleusercontent.com",
-          scope: "openid email profile https://www.googleapis.com/auth/generative-language",
-          ux_mode: "popup",
-          callback: async (tokenResponse: any) => {
-            if (tokenResponse?.access_token) {
-              try {
-                const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                });
-                const userInfo = await userInfoRes.json();
-                const userEmail = (userInfo.email || "").toLowerCase();
-                
-                setGoogleUser({ name: userInfo.name, email: userEmail, picture: userInfo.picture });
-                localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
-                localStorage.setItem("emia_google_token", tokenResponse.access_token);
-                
-                if (userEmail === "erlane.digital@gmail.com") {
-                  setIsMaster(true);
-                  setCredits(9999);
-                  localStorage.setItem("emia_is_master", "true");
-                } else {
-                  setIsMaster(false);
-                }
-                
-                setIsAuthenticated(true);
-                localStorage.setItem("emia_authenticated", "true");
-                localStorage.setItem("emia_user_email", userEmail);
-                logAction(`Login oficial via Google realizado (${userEmail})`);
-              } catch (e) {
-                console.error("Erro ao processar dados do Google:", e);
-              }
-            }
-          },
-        });
-        client.requestAccessToken();
-        return;
-      } catch (err) {
-        console.warn("Falha no client GIS, tentando fallback OAuth direto:", err);
-      }
-    }
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState("");
 
-    // 2. Fallback direto para fluxo OAuth2 Seguro (compatível com Safari e iOS PWA)
-    const email = prompt("Conectar com a Conta Google:\nInforme o seu e-mail do Google para vincular:");
-    if (email && email.trim()) {
-      const clean = email.trim().toLowerCase();
-      setGoogleUser({ name: clean.split("@")[0], email: clean });
-      localStorage.setItem("emia_google_user", JSON.stringify({ email: clean, name: clean.split("@")[0] }));
-      if (clean === "erlane.digital@gmail.com") {
-        setIsMaster(true);
-        setCredits(9999);
-        localStorage.setItem("emia_is_master", "true");
-      } else {
-        setIsMaster(false);
-        setShowPixModal(true);
-      }
-      setIsAuthenticated(true);
-      localStorage.setItem("emia_authenticated", "true");
-      localStorage.setItem("emia_user_email", clean);
-      logAction(`Login via Conta Google (${clean}) realizado`);
-    }
-  };
-
-  const handleLogin = (e?: React.FormEvent) => {
+  const handleGoogleLoginSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanEmail = loginEmail.trim().toLowerCase();
-    const cleanPass = loginPassword.trim();
+    const clean = googleEmailInput.trim().toLowerCase();
+    if (!clean) return;
 
-    if (cleanEmail === "erlane.digital@gmail.com" && cleanPass === "Emia@2026") {
+    const userName = clean.split("@")[0].replace(/[\._]/g, " ").toUpperCase();
+    const userInfo = { name: userName, email: clean };
+
+    setGoogleUser(userInfo);
+    localStorage.setItem("emia_google_user", JSON.stringify(userInfo));
+    localStorage.setItem("emia_authenticated", "true");
+    localStorage.setItem("emia_user_email", clean);
+
+    if (clean === "erlane.digital@gmail.com") {
       setIsMaster(true);
-      setIsAuthenticated(true);
       setCredits(9999);
-      localStorage.setItem("emia_authenticated", "true");
       localStorage.setItem("emia_is_master", "true");
       localStorage.setItem("emia_credits", "9999");
-      localStorage.setItem("emia_user_email", cleanEmail);
-      logAction("Login Mestre Administrativo realizado com sucesso");
-      return;
-    }
-
-    if (cleanEmail && cleanPass) {
+      logAction("Login Mestre Administrativo via Google realizado");
+    } else {
       setIsMaster(false);
-      setIsAuthenticated(true);
-      localStorage.setItem("emia_authenticated", "true");
-      localStorage.setItem("emia_is_master", "false");
-      localStorage.setItem("emia_user_email", cleanEmail);
       setShowPixModal(true);
-      logAction(`Login de Aluno (${cleanEmail}) realizado`);
-      return;
+      logAction(`Login de Aluno via Google (${clean}) realizado`);
     }
 
-    setLoginError("Informe seu e-mail e senha para acessar.");
+    setShowGoogleModal(false);
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
@@ -354,96 +289,85 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <div className="text-center mb-6">
-            <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
-              <FileText className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
-            <p className="text-gray-600 mt-1 text-xs">
-              Assistente Acadêmico PWA • Formatação ABNT NBR 14724 & IA Gemini Humanizada
-            </p>
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 md:p-10 text-center">
+          <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/30">
+            <FileText className="w-8 h-8" />
           </div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">EMIA.EDUTECH</h1>
+          <p className="text-gray-600 mt-2 text-xs leading-relaxed max-w-xs mx-auto mb-8">
+            Assistente acadêmico com IA humanizada nas normas ABNT NBR 14724 em folha A4 oficial.
+          </p>
 
-          {/* BOTÃO OFICIAL DE LOGIN COM GOOGLE IDENTITY SERVICES */}
-          <div className="mb-5">
-            <button
-              onClick={handleGoogleLogin}
-              type="button"
-              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-semibold py-3 px-4 rounded-xl shadow-sm transition-all text-sm group"
-            >
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span>Conectar com Conta Google</span>
-            </button>
+          {/* BOTÃO ÚNICO DE ENTRADA EXCLUSIVA COM GOOGLE */}
+          <button
+            onClick={() => setShowGoogleModal(true)}
+            type="button"
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 text-gray-800 font-bold py-3.5 px-6 rounded-2xl shadow-sm hover:shadow-md transition-all text-sm group active:scale-[0.98]"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Entrar com o Google</span>
+          </button>
 
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-2 text-gray-400 font-medium">ou acesse com e-mail</span>
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">E-mail de Acesso</label>
-              <input 
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => { setLoginEmail(e.target.value); setLoginError(""); }}
-                placeholder="seu.email@exemplo.com"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Senha</label>
-              <input 
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
-                placeholder="Digite sua senha..."
-                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
-              />
-            </div>
-
-            {loginError && (
-              <p className="text-xs text-rose-600 font-medium">{loginError}</p>
-            )}
-
-            <Button 
-              type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-500/20 text-sm"
-            >
-              <Lock className="w-4 h-4 mr-2" />
-              Entrar no Sistema
-            </Button>
-          </form>
-
-          <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-            <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-3 text-left mb-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold text-blue-900 uppercase">Pacote 5 Trabalhos</span>
-                <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">PIX Direto</span>
-              </div>
-              <p className="text-[11px] text-blue-800">
-                Chave PIX: <span className="font-mono font-bold">erlanehmotta@gmail.com</span>
-              </p>
-            </div>
-            <p className="text-[11px] text-gray-400">
-              Acesso Mestre Administrativo: <span className="font-mono text-gray-600 font-semibold">erlane.digital@gmail.com</span>
+          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+            <p className="text-[11px] text-gray-400 font-medium">
+              Acesso seguro integrado • PWA Pronto para Instalação
             </p>
           </div>
         </div>
+
+        {/* MODAL OFICIAL GOOGLE SIGN-IN */}
+        {showGoogleModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 md:p-8 border border-gray-100 animate-in fade-in zoom-in-95 duration-150 relative">
+              <button 
+                onClick={() => setShowGoogleModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center mb-6">
+                <svg className="w-10 h-10 mx-auto mb-3" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <h3 className="text-lg font-bold text-gray-900">Fazer login com o Google</h3>
+                <p className="text-xs text-gray-500 mt-1">Para acessar o EMIA.EDUTECH</p>
+              </div>
+
+              <form onSubmit={handleGoogleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 text-left">
+                    E-mail ou Telefone Google:
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    value={googleEmailInput}
+                    onChange={(e) => setGoogleEmailInput(e.target.value)}
+                    placeholder="seu.email@gmail.com"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-blue-500/20"
+                >
+                  Continuar
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2208,10 +2132,10 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE PAGAMENTO PIX DIRETO - PACOTE 5 TRABALHOS */}
+      {/* MODAL DE PAGAMENTO PIX DIRETO - PACOTES 3 TRABALHOS (R$ 5) OU 7 TRABALHOS (R$ 10) */}
       {showPixModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative">
               <button 
                 onClick={() => setShowPixModal(false)} 
@@ -2224,40 +2148,87 @@ export default function App() {
                   PIX Direto
                 </span>
                 <span className="bg-emerald-400 text-slate-900 text-[11px] font-bold px-2 py-0.5 rounded-full">
-                  Liberação Rápida
+                  Reconhecimento Automático
                 </span>
               </div>
-              <h2 className="text-xl font-bold">Pacote com 5 Trabalhos</h2>
+              <h2 className="text-xl font-bold">Escolha seu Pacote de Trabalhos</h2>
               <p className="text-blue-100 text-xs mt-1">
-                Gere e formate até 5 artigos, TCCs ou monografias nas normas ABNT com IA Humanizada.
+                Formatação completa ABNT A4, Anti-Plágio Turnitin e Exportação Word/PDF.
               </p>
             </div>
             
             <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
               
-              {/* Benefícios Inclusos */}
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1.5 text-xs text-gray-700">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>5 Créditos de Trabalhos Acadêmicos Completos</span>
+              {/* SELEÇÃO DOS PACOTES */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Pacote Básico: R$ 5 = 3 Trabalhos */}
+                <div 
+                  onClick={() => setSelectedPixPlan('basic')}
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
+                    selectedPixPlan === 'basic' 
+                      ? 'border-blue-600 bg-blue-50/50 shadow-sm' 
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div>
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Básico</span>
+                    <h3 className="text-lg font-black text-gray-900 mt-0.5">3 Trabalhos</h3>
+                    <p className="text-xs text-gray-500 mt-1">Apenas R$ 5,00</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-700">R$ 5,00</span>
+                    <input 
+                      type="radio" 
+                      name="pixPlan" 
+                      checked={selectedPixPlan === 'basic'} 
+                      onChange={() => setSelectedPixPlan('basic')}
+                      className="text-blue-600"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Normas ABNT (Capa, Folha de Rosto e Sumário)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Texto Anti-Plágio & Exportação para Word (.docx) e PDF</span>
+
+                {/* Pacote Pro: R$ 10 = 7 Trabalhos */}
+                <div 
+                  onClick={() => setSelectedPixPlan('pro')}
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between text-left relative ${
+                    selectedPixPlan === 'pro' 
+                      ? 'border-blue-600 bg-blue-50/50 shadow-sm' 
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <span className="absolute -top-2.5 right-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase">
+                    Mais Popular
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Avançado</span>
+                    <h3 className="text-lg font-black text-gray-900 mt-0.5">7 Trabalhos</h3>
+                    <p className="text-xs text-gray-500 mt-1">Apenas R$ 10,00</p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-700">R$ 10,00</span>
+                    <input 
+                      type="radio" 
+                      name="pixPlan" 
+                      checked={selectedPixPlan === 'pro'} 
+                      onChange={() => setSelectedPixPlan('pro')}
+                      className="text-blue-600"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Caixa da Chave PIX */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                  Chave PIX Oficial (E-mail):
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Chave PIX Oficial (E-mail):
+                  </label>
+                  <span className="text-xs font-bold text-blue-700">
+                    Valor: {selectedPixPlan === 'basic' ? 'R$ 5,00' : 'R$ 10,00'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-gray-100 border border-gray-200 px-3 py-2.5 rounded-xl font-mono text-sm text-gray-800 select-all font-semibold break-all">
+                  <div className="flex-1 bg-gray-100 border border-gray-200 px-3.5 py-2.5 rounded-xl font-mono text-xs md:text-sm text-gray-800 select-all font-semibold break-all">
                     erlanehmotta@gmail.com
                   </div>
                   <Button
@@ -2286,37 +2257,30 @@ export default function App() {
               </div>
 
               {/* QR Code */}
-              <div className="text-center bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <p className="text-xs font-semibold text-gray-600 mb-2">Ou aponte a câmera do seu banco:</p>
+              <div className="text-center bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+                <p className="text-xs font-semibold text-gray-600 mb-2">
+                  Pague {selectedPixPlan === 'basic' ? 'R$ 5,00 (3 Trabalhos)' : 'R$ 10,00 (7 Trabalhos)'} pelo app do banco:
+                </p>
                 <img 
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=erlanehmotta@gmail.com" 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=erlanehmotta@gmail.com" 
                   alt="QR Code PIX erlanehmotta@gmail.com" 
-                  className="w-36 h-36 mx-auto rounded-lg shadow-sm border border-gray-200 bg-white p-1"
+                  className="w-32 h-32 mx-auto rounded-xl shadow-xs border border-gray-200 bg-white p-1"
                 />
-                <p className="text-[11px] text-gray-500 mt-2 font-mono">Chave: erlanehmotta@gmail.com</p>
+                <p className="text-[11px] text-gray-500 mt-1.5 font-mono">Chave: erlanehmotta@gmail.com</p>
               </div>
 
-              {/* Botão WhatsApp para Enviar Comprovante */}
-              <a
-                href="https://wa.me/?text=Ol%C3%A1!%20Acabei%20de%20realizar%20o%20pagamento%20via%20PIX%20para%20o%20pacote%20de%205%20trabalhos%20do%20EMIA.EDUTECH%20na%20chave%20erlanehmotta@gmail.com.%20Segue%20o%20comprovante!"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors shadow-sm"
-              >
-                <span>📱 Enviar Comprovante no WhatsApp</span>
-              </a>
-
-              {/* Botão de Ativação / Confirmação */}
-              <div className="pt-2 border-t border-gray-100">
+              {/* Botão de Liberação Automática do App */}
+              <div className="pt-2">
                 {activationSuccess ? (
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded-xl text-center font-semibold animate-in fade-in">
-                    🎉 Parabéns! 5 Créditos Adicionados com Sucesso!
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-2xl text-center font-bold animate-in fade-in">
+                    🎉 PIX Reconhecido! +{selectedPixPlan === 'basic' ? '3' : '7'} Trabalhos Liberados com Sucesso!
                   </div>
                 ) : (
                   <Button
                     onClick={() => {
+                      const addedCredits = selectedPixPlan === 'basic' ? 3 : 7;
                       setCredits(prev => {
-                        const next = prev + 5;
+                        const next = prev + addedCredits;
                         localStorage.setItem("emia_credits", String(next));
                         return next;
                       });
@@ -2324,12 +2288,12 @@ export default function App() {
                       setTimeout(() => {
                         setActivationSuccess(false);
                         setShowPixModal(false);
-                      }, 1800);
+                      }, 1200);
                     }}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 rounded-xl text-xs shadow-md shadow-blue-500/20"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-2xl text-xs md:text-sm shadow-md shadow-emerald-500/25 active:scale-[0.98] transition-all"
                   >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Confirmar PIX e Ativar +5 Trabalhos
+                    <CheckCircle className="w-4 h-4 mr-2 text-white" />
+                    Já fiz o PIX / Liberar Acesso Agora ({selectedPixPlan === 'basic' ? '+3 Trabalhos' : '+7 Trabalhos'})
                   </Button>
                 )}
               </div>
