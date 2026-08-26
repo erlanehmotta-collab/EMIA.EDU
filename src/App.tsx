@@ -293,8 +293,17 @@ export default function App() {
                   setCredits(9999);
                   localStorage.setItem("emia_is_master", "true");
                   localStorage.setItem("emia_credits", "9999");
+                  logAction(`Login Mestre Administrativo realizado (${email})`);
+                } else {
+                  setIsMaster(false);
+                  const savedCreds = localStorage.getItem("emia_credits");
+                  const userCredits = savedCreds ? parseInt(savedCreds, 10) : 0;
+                  setCredits(userCredits);
+                  if (userCredits <= 0) {
+                    setShowPixModal(true);
+                  }
+                  logAction(`Login de Aluno via Google realizado (${email})`);
                 }
-                logAction(`Login OAuth 2.0 via Google concluído com sucesso (${email})`);
               } catch (e) {
                 console.warn("Falha ao buscar perfil, usando sessão:", e);
                 localStorage.setItem("emia_authenticated", "true");
@@ -376,7 +385,7 @@ export default function App() {
             onClick={handleOfficialGoogleLogin}
             disabled={isGoogleLoggingIn}
             type="button"
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 text-gray-800 font-bold py-3.5 px-6 rounded-2xl shadow-sm hover:shadow-md transition-all text-sm group active:scale-[0.98] disabled:opacity-70"
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 text-gray-800 font-bold py-4 px-6 rounded-2xl shadow-sm hover:shadow-md transition-all text-sm group active:scale-[0.98] disabled:opacity-70"
           >
             {isGoogleLoggingIn ? (
               <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
@@ -388,27 +397,12 @@ export default function App() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
               </svg>
             )}
-            <span>{isGoogleLoggingIn ? "Conectando ao Google..." : "Entrar com o Google"}</span>
+            <span className="text-sm font-extrabold">{isGoogleLoggingIn ? "Conectando ao Google..." : "Entrar com o Google"}</span>
           </button>
 
-          {/* DIVISOR OU CHAVE PRÓPRIA DE API */}
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-3 text-gray-400 font-bold">Ou conecte sua própria chave de IA</span></div>
-          </div>
-
-          <button
-            onClick={() => setShowApiKeyModal(true)}
-            type="button"
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 hover:border-emerald-500 hover:bg-emerald-100/50 text-emerald-900 font-bold py-3 px-4 rounded-2xl shadow-xs transition-all text-xs active:scale-[0.98]"
-          >
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>Usar minha Chave de API</span>
-          </button>
-
-          <div className="mt-6 pt-5 border-t border-gray-100 text-center">
+          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <p className="text-[11px] text-gray-400 font-medium">
-              Conexão com Google Gemini, OpenAI ChatGPT, Claude & OpenSource • PWA
+              Acesso com Google • Geração de trabalhos acadêmicos nas normas ABNT
             </p>
           </div>
         </div>
@@ -619,11 +613,11 @@ export default function App() {
 
   const handleGenerate = async () => {
     const cleanTitle = title.trim() || "Trabalho Acadêmico Geral";
-    const hasOwnQuota = !!customGeminiKey || !!googleUser;
     
-    if (credits <= 0 && !isMaster && !hasOwnQuota) {
+    // VERIFICAÇÃO DE CRÉDITOS: Usuário comum precisa de créditos pagos para gerar
+    if (credits <= 0 && !isMaster) {
       setShowPixModal(true);
-      setErrorMessage("Seus créditos acabaram! Adquira o pacote de trabalhos via PIX direto ou conecte sua própria chave de IA.");
+      setErrorMessage("Você não possui trabalhos disponíveis. Escolha um pacote de créditos PIX para gerar seu texto.");
       return;
     }
 
@@ -680,7 +674,7 @@ export default function App() {
         setGeneratedText(data.text);
         setActiveTab("editor");
         logAction(`Geração de documento: ${cleanTitle}`, data.text);
-        if (!isMaster && !hasOwnQuota) {
+        if (!isMaster) {
           setCredits(prev => {
             const next = Math.max(0, prev - 1);
             localStorage.setItem("emia_credits", String(next));
