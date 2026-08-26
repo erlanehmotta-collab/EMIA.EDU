@@ -305,16 +305,26 @@ export default function App() {
                   logAction(`Login de Aluno via Google realizado (${email})`);
                 }
               } catch (e) {
-                console.warn("Falha ao buscar perfil, usando sessão:", e);
-                localStorage.setItem("emia_authenticated", "true");
-                setIsAuthenticated(true);
+                console.error("Falha ao validar autenticação Google:", e);
+                localStorage.removeItem("emia_authenticated");
+                localStorage.removeItem("emia_google_token");
+                setIsAuthenticated(false);
+                setErrorMessage("Falha ao validar sua conta Google. O acesso foi bloqueado.");
               }
+            } else {
+              localStorage.removeItem("emia_authenticated");
+              localStorage.removeItem("emia_google_token");
+              setIsAuthenticated(false);
+              setErrorMessage("Autenticação não concluída. O acesso permanece bloqueado.");
             }
           },
           error_callback: (err: any) => {
             setIsGoogleLoggingIn(false);
-            console.warn("OAuth 2.0 Pop-up cancelado ou indisponível, abrindo modal:", err);
-            setShowGoogleModal(true);
+            console.error("Erro ou cancelamento do Google OAuth:", err);
+            localStorage.removeItem("emia_authenticated");
+            localStorage.removeItem("emia_google_token");
+            setIsAuthenticated(false);
+            setErrorMessage("Autenticação cancelada ou com erro no Google. Acesso bloqueado.");
           }
         });
         tokenClient.requestAccessToken();
@@ -322,8 +332,12 @@ export default function App() {
         setShowGoogleModal(true);
       }
     } catch (e) {
-      console.warn("Falha ao inicializar GIS OAuth 2.0, fallback para modal:", e);
-      setShowGoogleModal(true);
+      console.error("Falha ao inicializar GIS OAuth 2.0:", e);
+      setIsGoogleLoggingIn(false);
+      localStorage.removeItem("emia_authenticated");
+      localStorage.removeItem("emia_google_token");
+      setIsAuthenticated(false);
+      setErrorMessage("Erro ao conectar com os servidores de autenticação do Google.");
     }
   };
 
