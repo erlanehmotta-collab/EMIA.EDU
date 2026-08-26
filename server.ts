@@ -277,14 +277,46 @@ Diretrizes Estritas de Pós-Processamento:
 Texto bruto para sanitização estocástica:
 \n${deterministicFiltered}`;
       
-      generatedText = await generateFromText(humanizeInstruction, req);
-      
       // Varredura final de segurança
       generatedText = generatedText
         .replace(/^```[a-z]*\n?/gm, "")
         .replace(/```$/gm, "")
         .replace(/^(Aqui está.*|Com certeza!.*|Claro,.*|Segue o.*|Espero que.*|Nota do modelo:.*)$/gim, "")
         .trim();
+
+      // Garante a estrutura completa ABNT: Capa (Pág 1) + Folha de Rosto (Pág 2) + Corpo Completo (Págs 3+)
+      if (!generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+        const instName = (institution || "NOME DA INSTITUIÇÃO DE ENSINO").toUpperCase();
+        const courseName = course ? course.toUpperCase() : "";
+        const authorName = (studentName || "NOME DO AUTOR DO TRABALHO").toUpperCase();
+        const docTitle = (title || "TÍTULO DO TRABALHO ACADÊMICO").toUpperCase();
+        const docSubtitle = subtitle ? ` - ${subtitle}` : "";
+        const docCity = (city || "CIDADE - UF").toUpperCase();
+        const docYear = year || new Date().getFullYear().toString();
+        const docType = (documentType ? documentType.toUpperCase() : "TRABALHO ACADÊMICO");
+        const advText = advisor ? `Orientador(a): ${advisor}` : "";
+
+        const coverPage = `${instName}${courseName ? `\n${courseName}` : ""}\n\n\n\n${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+        const titlePage = `${authorName}\n\n\n\n\n\n\n\n${docTitle}${docSubtitle}\n\n\n\n                                          ${docType} apresentado à ${instName}${courseName ? ` como requisito parcial de avaliação para o curso de ${courseName}` : ""}.\n${advText ? `\n                                          ${advText}` : ""}\n\n\n\n\n\n\n\n${docCity}\n${docYear}`;
+
+        // Segmenta o corpo do texto em páginas de tamanho A4 (~2400 caracteres por página)
+        const paragraphs = generatedText.split(/\n\n+/);
+        const bodyPages: string[] = [];
+        let curPage = "";
+        for (const para of paragraphs) {
+          if ((curPage + "\n\n" + para).length > 2400 && curPage.trim().length > 0) {
+            bodyPages.push(curPage.trim());
+            curPage = para;
+          } else {
+            curPage = curPage ? curPage + "\n\n" + para : para;
+          }
+        }
+        if (curPage.trim()) {
+          bodyPages.push(curPage.trim());
+        }
+
+        generatedText = `${coverPage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${titlePage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${bodyPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n")}`;
+      }
 
       res.json({ success: true, text: generatedText });
     } catch (error) {

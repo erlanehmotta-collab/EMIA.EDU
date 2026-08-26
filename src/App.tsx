@@ -1780,8 +1780,29 @@ export default function App() {
             {(activeTab === "editor" || activeTab === "generator") && (
               <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#525659]">
                 {(() => {
-                  const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
-                  const totalPages = pages.length;
+                  let pages: string[] = [];
+                  
+                  if (generatedText && generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+                    pages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+                  } else if (generatedText && generatedText.trim()) {
+                    // Divide o texto em blocos de páginas A4 (~2200 caracteres cada)
+                    const paragraphs = generatedText.split(/\n\n+/);
+                    const bodyPages: string[] = [];
+                    let curPage = "";
+                    for (const para of paragraphs) {
+                      if ((curPage + "\n\n" + para).length > 2200 && curPage.trim().length > 0) {
+                        bodyPages.push(curPage.trim());
+                        curPage = para;
+                      } else {
+                        curPage = curPage ? curPage + "\n\n" + para : para;
+                      }
+                    }
+                    if (curPage.trim()) bodyPages.push(curPage.trim());
+
+                    pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ...bodyPages];
+                  } else {
+                    pages = ["CAPA_AUTO", "FOLHA_ROSTO_AUTO", ""];
+                  }
 
                   const renderSingleA4Sheet = (text: string, pIdx: number) => {
                     const isCover = pIdx === 0;
@@ -1814,9 +1835,9 @@ export default function App() {
                           <div className="flex-1 flex flex-col justify-between text-center font-['Arial'] text-gray-900 py-4 select-text">
                             <div>
                               <h1 className="font-bold text-sm sm:text-base uppercase tracking-wider">
-                                {institution || lines[0] || "NOME DA INSTITUIÇÃO DE ENSINO"}
+                                {institution || (lines[0] !== "CAPA_AUTO" ? lines[0] : "") || "NOME DA INSTITUIÇÃO DE ENSINO"}
                               </h1>
-                              {(course || (lines[1] && lines[1] !== lines[0])) && (
+                              {(course || (lines[1] && lines[1] !== lines[0] && lines[1] !== "CAPA_AUTO")) && (
                                 <h2 className="font-semibold text-xs sm:text-sm uppercase text-gray-700 mt-1">
                                   {course || lines[1]}
                                 </h2>
@@ -1825,15 +1846,15 @@ export default function App() {
 
                             <div className="my-auto py-6">
                               <p className="font-semibold text-sm sm:text-base uppercase tracking-wide">
-                                {studentName || lines[2] || "NOME DO AUTOR"}
+                                {studentName || (lines[2] && lines[2] !== "CAPA_AUTO" ? lines[2] : "") || "NOME DO AUTOR"}
                               </p>
                             </div>
 
                             <div className="my-auto py-8">
                               <h3 className="font-extrabold text-base sm:text-lg uppercase tracking-tight text-gray-900 leading-snug">
-                                {title || lines[3] || "TÍTULO DO TRABALHO ACADÊMICO"}
+                                {title || (lines[3] && lines[3] !== "CAPA_AUTO" ? lines[3] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </h3>
-                              {(subtitle || lines[4]) && (
+                              {(subtitle || (lines[4] && lines[4] !== "CAPA_AUTO")) && (
                                 <p className="font-normal text-xs sm:text-sm text-gray-700 mt-1">
                                   {subtitle || lines[4]}
                                 </p>
@@ -1854,13 +1875,13 @@ export default function App() {
                           <div className="flex-1 flex flex-col justify-between font-['Arial'] text-gray-900 py-4 select-text">
                             <div className="text-center">
                               <p className="font-semibold text-sm sm:text-base uppercase tracking-wide">
-                                {studentName || lines[0] || "NOME DO AUTOR"}
+                                {studentName || (lines[0] !== "FOLHA_ROSTO_AUTO" ? lines[0] : "") || "NOME DO AUTOR"}
                               </p>
                             </div>
 
                             <div className="my-auto text-center py-6">
                               <h3 className="font-bold text-base sm:text-lg uppercase tracking-tight text-gray-900">
-                                {title || lines[1] || "TÍTULO DO TRABALHO ACADÊMICO"}
+                                {title || (lines[1] && lines[1] !== "FOLHA_ROSTO_AUTO" ? lines[1] : "") || "TÍTULO DO TRABALHO ACADÊMICO"}
                               </h3>
                               {subtitle && (
                                 <p className="font-normal text-xs sm:text-sm text-gray-700 mt-1">
@@ -1892,7 +1913,7 @@ export default function App() {
                             </div>
                           </div>
                         ) : (
-                          /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT */
+                          /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT (PÁGINAS 3 EM DIANTE) */
                           <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text">
                             <textarea
                               value={text.trimStart()}
