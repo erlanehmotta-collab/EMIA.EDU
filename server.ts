@@ -334,49 +334,70 @@ async function startServer() {
       }
 
       const typeGuidelines: Record<string, string> = {
-        "artigo_cientifico": `ESTRUTURA OBRIGATÓRIA DE ARTIGO CIENTÍFICO (ABNT NBR 6022):
-- RESUMO estruturado com PALAVRAS-CHAVE em português.
-- 1 INTRODUÇÃO (contextualização do problema, objetivos claros e justificativa).
-- 2 METODOLOGIA (tipo de pesquisa, procedimentos e coleta de dados).
-- 3 RESULTADOS E DISCUSSÃO (análise detalhada e confronto com a literatura).
-- 4 CONSIDERAÇÕES FINAIS (conclusão das hipóteses e contribuições).
+        "artigo_cientifico": `ESTRUTURA RIGOROSA DE ARTIGO CIENTÍFICO (ABNT NBR 6022):
+- RESUMO estruturado (150 a 250 palavras) ressaltando objetivo, metodologia concisa e principais achados.
+- PALAVRAS-CHAVE: 3 a 5 termos separados por ponto final.
+- 1 INTRODUÇÃO (problematização científica, contextualização, justificativa e objetivos claros).
+- 2 METODOLOGIA (tipo de pesquisa, abordagem, procedimentos e instrumentos de análise).
+- 3 RESULTADOS E DISCUSSÃO (análise crítica aprofundada confrontando com literatura científica).
+- 4 CONSIDERAÇÕES FINAIS (síntese conclusiva, limitações e recomendações para estudos futuros).
+- REFERÊNCIAS bibliográficas completas conforme a NBR 6023.`,
+
+        "artigo": `ESTRUTURA DE ARTIGO ACADÊMICO (ABNT):
+- RESUMO e Palavras-chave.
+- 1 INTRODUÇÃO (delimitação temática e hipótese condutora).
+- 2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO DOS DADOS (dividido em subtópicos 2.1 e 2.2).
+- 3 CONSIDERAÇÕES FINAIS (resgate dos objetivos e conclusões).
 - REFERÊNCIAS bibliográficas completas no padrão ABNT.`,
 
-        "redacao": `ESTRUTURA OBRIGATÓRIA DE REDAÇÃO DISSERTATIVO-ARGUMENTATIVA (PADRÃO ENEM / VESTIBULAR):
-- NÃO coloque Capa, Folha de Rosto ou seções numeradas. Entregue o texto corrido em prosa (4 a 5 parágrafos).
-- 1º Parágrafo (Introdução): Apresentação do tema com repertório sociocultural legitimado e tese clara em duas frentes argumentativas.
-- 2º e 3º Parágrafos (Desenvolvimento D1 e D2): Argumentação profunda com dados, alusões históricas/filosóficas e causas/consequências.
-- 4º Parágrafo (Conclusão): Proposta de Intervenção completa com os 5 elementos obrigatórios (Agente, Ação, Meio/Modo, Efeito e Detalhamento).`,
+        "redacao": `ESTRUTURA RIGOROSA DE REDAÇÃO DISSERTATIVO-ARGUMENTATIVA (PADRÃO ENEM NOTA 1000):
+- REGRA ESTÉTICA: NÃO use Capa, Folha de Rosto, títulos numerados ou quebras de página. Texto em prosa contínua (4 parágrafos bem delimitados).
+- 1º Parágrafo (Introdução): Apresentação do tema com repertório legitimado (filosófico/histórico) e tese explícita contendo dois argumentos centrais (D1 e D2).
+- 2º Parágrafo (Desenvolvimento 1): Aprofundamento do primeiro argumento com dados, causa/efeito e autoridade.
+- 3º Parágrafo (Desenvolvimento 2): Aprofundamento do segundo argumento com conectivos interparágrafos e impacto social.
+- 4º Parágrafo (Conclusão): Proposta de Intervenção completa e articulada com os 5 elementos: AGENTE, AÇÃO, MODO/MEIO, EFEITO e DETALHAMENTO.`,
 
-        "resenha": `ESTRUTURA OBRIGATÓRIA DE RESENHA CRÍTICA:
-- 1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO DA OBRA / TEMA.
-- 2 RESUMO ANALÍTICO DAS PRINCIPAIS IDEIAS.
-- 3 APRECIAÇÃO CRÍTICA (pontos fortes, limitações e contribuição para a área).
-- 4 CONCLUSÃO E RECOMENDAÇÃO DE LEITURA.`,
+        "resenha": `ESTRUTURA RIGOROSA DE RESENHA CRÍTICA (ABNT):
+- 1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO (apresentação da obra, do autor e relevância temática).
+- 2 RESUMO ANALÍTICO (exposição ordenada e fidedigna das ideias centrais).
+- 3 APRECIAÇÃO CRÍTICA (avaliação técnica, pontos fortes, fragilidades e diálogo com a área).
+- 4 CONCLUSÃO E INDICAÇÃO DE PÚBLICO-ALVO.`,
 
-        "resumo": `ESTRUTURA OBRIGATÓRIA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
-- Texto em parágrafo único ou blocos concisos, ressaltando objetivo, método, resultados e conclusões.
-- PALAVRAS-CHAVE ao final.`,
+        "resumo": `ESTRUTURA RIGOROSA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
+- Texto em parágrafo corrido, coeso e direto (sem tópicos soltos), destacando objetivo, fundamentação, método, resultados e conclusões.
+- Palavras-chave no final.`,
 
-        "estudo_caso": `ESTRUTURA OBRIGATÓRIA DE ESTUDO DE CASO:
-- 1 APRESENTAÇÃO DO CASO E CONTEXTO.
-- 2 DIAGNÓSTICO E IDENTIFICAÇÃO DOS PROBLEMAS CENTRAIS.
-- 3 ANÁLISE FUNDAMENTADA NAS TEORIAS DA ÁREA.
-- 4 PLANO DE AÇÃO E RECOMENDAÇÕES PRÁTICAS.`,
+        "estudo_caso": `ESTRUTURA RIGOROSA DE ESTUDO DE CASO:
+- 1 APRESENTAÇÃO DO CENÁRIO E CONTEXTUALIZAÇÃO DO CASO.
+- 2 DIAGNÓSTICO E IDENTIFICAÇÃO DOS PROBLEMAS E GARGALOS.
+- 3 ANÁLISE FUNDAMENTADA EM TEORIAS E MODELOS APLICADOS.
+- 4 PLANO DE AÇÃO, SOLUÇÕES PROPOSTAS E IMPACTOS ESPERADOS.
+- REFERÊNCIAS.`,
 
-        "relatorio": `ESTRUTURA OBRIGATÓRIA DE RELATÓRIO TÉCNICO:
-- 1 INTRODUÇÃO E ESCOPO DO RELATÓRIO.
-- 2 PROCEDIMENTOS E ATIVIDADES REALIZADAS.
-- 3 RESULTADOS OBTIDOS E ANÁLISE DE DESEMPENHO.
-- 4 RECOMENDAÇÕES E CONSIDERAÇÕES TÉCNICAS.`,
+        "relatorio": `ESTRUTURA RIGOROSA DE RELATÓRIO TÉCNICO-CIENTÍFICO:
+- 1 INTRODUÇÃO E ESCOPO DOS TRABALHOS.
+- 2 PROCEDIMENTOS TÉCNICOS E ATIVIDADES EXECUTADAS.
+- 3 RESULTADOS OBTIDOS, DIAGNÓSTICOS E EVIDÊNCIAS.
+- 4 RECOMENDAÇÕES TÉCNICAS E CONSIDERAÇÕES FINAIS.
+- REFERÊNCIAS.`,
 
-        "monografia": `ESTRUTURA OBRIGATÓRIA DE MONOGRAFIA / TCC (ABNT NBR 14724):
-- RESUMO com Palavras-chave.
-- 1 INTRODUÇÃO (problematização, objetivos e justificativa).
-- 2 REVISÃO BIBLIOGRÁFICA / FUNDAMENTAÇÃO TEÓRICA.
-- 3 PROCEDIMENTOS METODOLÓGICOS.
-- 4 APRESENTAÇÃO E ANÁLISE DOS DADOS.
+        "monografia": `ESTRUTURA RIGOROSA DE MONOGRAFIA / TCC (ABNT NBR 14724):
+- RESUMO e Palavras-chave.
+- 1 INTRODUÇÃO (contextualização, problema de pesquisa, hipóteses, justificativa e objetivos).
+- 2 REVISÃO DA LITERATURA / FUNDAMENTAÇÃO TEÓRICA (seções 2.1, 2.2).
+- 3 PROCEDIMENTOS METODOLÓGICOS (delineamento, universo/amostra, coleta e tratamento dos dados).
+- 4 ANÁLISE E DISCUSSÃO DOS RESULTADOS.
 - 5 CONSIDERAÇÕES FINAIS.
+- REFERÊNCIAS.`,
+
+        "projeto": `ESTRUTURA RIGOROSA DE PROJETO DE PESQUISA (ABNT NBR 15287):
+- 1 DELIMITAÇÃO DO TEMA E PROBLEMATIZAÇÃO.
+- 2 HIPÓTESES OU QUESTÕES NORTEADORAS.
+- 3 JUSTIFICATIVA E RELEVÂNCIA ACADÊMICA/SOCIAL.
+- 4 OBJETIVOS (Geral e Específicos).
+- 5 QUADRO TEÓRICO PRELIMINAR.
+- 6 METODOLOGIA PROPOSTA.
+- 7 CRONOGRAMA DE EXECUÇÃO ESTIMADO.
 - REFERÊNCIAS.`
       };
 
@@ -400,29 +421,30 @@ async function startServer() {
         "redacao": "redação dissertativo-argumentativa"
       };
       const selectedType = typeMap[documentType] || documentType || "artigo acadêmico";
-      const subtitleText = subtitle ? ` - Subtítulo: ${subtitle}` : "";
+      const subtitleText = subtitle && subtitle.trim() ? ` - Subtítulo: ${subtitle.trim()}` : "";
 
       const hasWorkData = (studentName || course || institution || city || year || advisor) && documentType !== "redacao";
       let coverDataLines = "";
-      if (institution) coverDataLines += `\n      - Instituição: ${institution}`;
-      if (course) coverDataLines += `\n      - Curso: ${course}`;
-      if (studentName) coverDataLines += `\n      - Autor/Aluno: ${studentName}`;
-      if (title) coverDataLines += `\n      - Título: ${title}`;
-      if (subtitle) coverDataLines += `\n      - Subtítulo: ${subtitle}`;
-      if (advisor) coverDataLines += `\n      - Orientador: ${advisor}`;
-      if (city) coverDataLines += `\n      - Cidade: ${city}`;
-      if (year) coverDataLines += `\n      - Ano: ${year}`;
+      if (institution && institution.trim()) coverDataLines += `\n      - Instituição: ${institution.trim()}`;
+      if (course && course.trim()) coverDataLines += `\n      - Curso: ${course.trim()}`;
+      if (studentName && studentName.trim()) coverDataLines += `\n      - Autor/Aluno: ${studentName.trim()}`;
+      if (title && title.trim()) coverDataLines += `\n      - Título: ${title.trim()}`;
+      if (subtitle && subtitle.trim()) coverDataLines += `\n      - Subtítulo: ${subtitle.trim()}`;
+      if (advisor && advisor.trim()) coverDataLines += `\n      - Orientador: ${advisor.trim()}`;
+      if (city && city.trim()) coverDataLines += `\n      - Cidade: ${city.trim()}`;
+      if (year && year.trim()) coverDataLines += `\n      - Ano: ${year.trim()}`;
 
       const coverInstruction = hasWorkData ? `
       IMPORTANTE: Como os dados do trabalho foram fornecidos, INICIE o documento estruturando a Capa e a Folha de Rosto estritamente nas normas ABNT.
-      Simule o espaçamento e a hierarquia visual usando quebras de linha e CAIXA ALTA onde necessário.
-      - Capa: NOME DA INSTITUIÇÃO no topo (caixa alta), NOME DO CURSO (se houver, abaixo da instituição), NOME DO AUTOR em seguida (caixa alta), TÍTULO no meio da página (caixa alta e destaque), CIDADE e ANO na parte inferior.
-      - Folha de Rosto: NOME DO AUTOR no topo, TÍTULO no meio, Nota de apresentação simulando recuo, CIDADE e ANO na parte inferior.
+      - REGRA INVIOLÁVEL DE PREENCHIMENTO: Se um campo NÃO foi informado (ex: subtítulo, orientador, cidade, ano, curso), NÃO invente dados fictícios, NÃO use textos como "NOME DA INSTITUIÇÃO", "CIDADE - UF" ou "Subtítulo não informado". DEIXE TOTALMENTE EM BRANCO sem nenhum vestígio.
+      - Capa: Instituição no topo (caixa alta), Curso (se informado), Autor (caixa alta), Título e Subtítulo (somente se informado) no centro, Cidade e Ano no rodapé.
+      - Folha de Rosto: Autor no topo, Título no centro, Nota de Apresentação com recuo, Cidade e Ano no rodapé.
       - Adicione o marcador explícito "--- [QUEBRA DE PÁGINA] ---" entre a capa, a folha de rosto e o início do texto.
-      - REGRA ABSOLUTA: Se um campo NÃO foi informado abaixo, NÃO invente, NÃO coloque placeholder e NÃO escreva nada naquele espaço. Deixe em branco.
 
-      Dados fornecidos:${coverDataLines}
-      ` : "";
+      Dados informados:${coverDataLines}
+      ` : `
+      REGRA DE OURO: NÃO gere capa nem folha de rosto fictícias se os dados do trabalho não foram fornecidos. Inicie diretamente no conteúdo textual do gênero ${selectedType}.
+      `;
 
       const instruction = `Crie um(a) ${selectedType} detalhado(a) e aprofundado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
       
