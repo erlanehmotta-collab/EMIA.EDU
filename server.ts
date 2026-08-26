@@ -233,33 +233,52 @@ async function startServer() {
       }
     }
 
-    // 4. MOTOR DE IA OPEN-SOURCE AUTOMÁTICO (Zero Configuração / Sem necessidade de Chave Manual)
-    // Conecta diretamente a modelos abertos (Llama 3.3, Mistral, Qwen) via endpoint autônomo gratuito
+    // 4. MOTOR DE IA AUTÔNOMO (Multi-Endpoint sem necessidade de configuração de chaves pelo usuário)
     try {
-      console.log("[EMIA] Conectando ao Motor de IA Autônomo Open-Source...");
-      const openSourceRes = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: personaDirective + (isDocument ? strictConstraint : chatConstraint) },
-            { role: "user", content: finalPrompt }
-          ],
-          model: "mistral",
-          seed: Math.floor(Math.random() * 1000000),
-          jsonMode: false
-        })
+      console.log("[EMIA] Tentando endpoint autônomo de IA...");
+      // Provedor 1: DuckDuckGo AI Proxy (Llama 3.3 70B / Claude 3 Haiku / GPT-4o-mini gratuito)
+      const ddgInit = await fetch("https://duckduckgo.com/duckchat/v1/status", {
+        headers: { "x-vqd-accept": "1" }
       });
+      const vqdToken = ddgInit.headers.get("x-vqd-4");
 
-      if (openSourceRes.ok) {
-        const textResult = await openSourceRes.text();
-        if (textResult && textResult.trim().length > 100) {
-          console.log("[EMIA] Texto gerado com sucesso via IA Open-Source Autônoma!");
-          return textResult.trim();
+      if (vqdToken) {
+        const ddgChat = await fetch("https://duckduckgo.com/duckchat/v1/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-vqd-4": vqdToken
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "user", content: finalPrompt }
+            ]
+          })
+        });
+
+        if (ddgChat.ok) {
+          const rawStream = await ddgChat.text();
+          const lines = rawStream.split("\n");
+          let fullGenerated = "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataPart = line.replace("data: ", "").trim();
+              if (dataPart === "[DONE]") break;
+              try {
+                const parsed = JSON.parse(dataPart);
+                if (parsed.message) fullGenerated += parsed.message;
+              } catch (e) {}
+            }
+          }
+          if (fullGenerated.trim().length > 100) {
+            console.log("[EMIA] Sucesso via IA Autônoma GPT-4o-mini!");
+            return fullGenerated.trim();
+          }
         }
       }
-    } catch (osErr) {
-      console.warn("[EMIA Open-Source Fallback]", osErr);
+    } catch (autoErr) {
+      console.warn("[EMIA Autonomous Engine Fallback]", autoErr);
     }
 
     // 4. Contingência Acadêmica (Garante 100% de tempo de resposta sem falhas)
