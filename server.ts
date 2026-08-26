@@ -233,6 +233,35 @@ async function startServer() {
       }
     }
 
+    // 4. MOTOR DE IA OPEN-SOURCE AUTOMÁTICO (Zero Configuração / Sem necessidade de Chave Manual)
+    // Conecta diretamente a modelos abertos (Llama 3.3, Mistral, Qwen) via endpoint autônomo gratuito
+    try {
+      console.log("[EMIA] Conectando ao Motor de IA Autônomo Open-Source...");
+      const openSourceRes = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: personaDirective + (isDocument ? strictConstraint : chatConstraint) },
+            { role: "user", content: finalPrompt }
+          ],
+          model: "mistral",
+          seed: Math.floor(Math.random() * 1000000),
+          jsonMode: false
+        })
+      });
+
+      if (openSourceRes.ok) {
+        const textResult = await openSourceRes.text();
+        if (textResult && textResult.trim().length > 100) {
+          console.log("[EMIA] Texto gerado com sucesso via IA Open-Source Autônoma!");
+          return textResult.trim();
+        }
+      }
+    } catch (osErr) {
+      console.warn("[EMIA Open-Source Fallback]", osErr);
+    }
+
     // 4. Contingência Acadêmica (Garante 100% de tempo de resposta sem falhas)
     // Extrai apenas o tema limpo do prompt (nunca passa a instrução inteira como tópico)
     const topicMatch = prompt.match(/sobre o tema\s+"([^"]+)"/i) || prompt.match(/sobre\s+"([^"]+)"/i);
