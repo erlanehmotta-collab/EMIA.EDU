@@ -110,6 +110,7 @@ export default function App() {
   }, [isLoading]);
 
   const [activeTab, setActiveTab] = useState<"generator" | "editor" | "report" | "chat">("generator");
+  const [editorMode, setEditorMode] = useState<"a4" | "raw">("a4");
 
   const logAction = (actionDesc: string, content?: string) => {
     setAuditLogs(prev => {
@@ -955,42 +956,81 @@ export default function App() {
     const maxY = 297 - marginBottom; // 277mm
     const lineHeight = 7.5; // Espaçamento 1.5 para fonte 12pt
     
-    const paragraphs = generatedText.split('\n');
-    let cursorY = marginTop;
-    let isCoverPage = true;
-    
-    paragraphs.forEach((paragraph) => {
-      if (paragraph.includes("--- [QUEBRA DE PÁGINA] ---") || paragraph.includes("--- [NOVA PÁGINA] ---") || paragraph.match(/---\s*\[Página.*?\]\s*---/i)) {
-        doc.addPage();
-        cursorY = marginTop;
-        isCoverPage = false;
-        return;
-      }
+    // Divide por quebras de página ABNT
+    const rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+    let pageCount = 0;
+
+    rawPages.forEach((pageContent, pageIdx) => {
+      if (pageIdx > 0) doc.addPage();
+      pageCount++;
       
-      if (!paragraph.trim()) {
-        cursorY += lineHeight * 0.8;
-        if (cursorY > maxY) {
-          doc.addPage();
-          cursorY = marginTop;
-        }
-        return;
+      // Regra ABNT NBR 14724 Oficial: Numeração arábica a partir da página 3 (Introdução) no Canto Superior Direito
+      if (pageCount >= 3) {
+        doc.setFontSize(10);
+        doc.text(String(pageCount), 190, 20, { align: "right" });
+        doc.setFontSize(12);
       }
 
-      const lines = doc.splitTextToSize(paragraph, printableWidth);
-      lines.forEach((line: string) => {
-        if (cursorY > maxY) {
-          doc.addPage();
-          cursorY = marginTop;
+      let cursorY = marginTop;
+      const isCover = pageIdx === 0;
+      const isTitlePage = pageIdx === 1;
+
+      const paragraphs = pageContent.split('\n');
+      paragraphs.forEach((paragraph) => {
+        if (!paragraph.trim()) {
+          cursorY += lineHeight * 0.8;
+          if (cursorY > maxY) {
+            doc.addPage();
+            pageCount++;
+            if (pageCount >= 3) {
+              doc.setFontSize(10);
+              doc.text(String(pageCount), 190, 20, { align: "right" });
+              doc.setFontSize(12);
+            }
+            cursorY = marginTop;
+          }
+          return;
         }
+
+        // Folha de Rosto: Nota de Natureza recuada à direita com fonte 10pt
+        const isRightNature = isTitlePage && (paragraph.trim().startsWith("Trabalho") || paragraph.trim().startsWith("Monografia") || paragraph.trim().startsWith("Artigo") || paragraph.trim().startsWith("Dissertação") || paragraph.trim().startsWith("Tese") || paragraph.trim().startsWith("Orientador"));
         
-        // Se estiver na capa e for linha de título/instituição, centraliza
-        const isCentered = isCoverPage || /^[A-Z0-9\sÁÉÍÓÚÀÈÌÒÙÃÕÂÊÎÔÛÇ]{4,}$/.test(line.trim());
-        if (isCentered && isCoverPage) {
-          doc.text(line, 105, cursorY, { align: "center" });
-        } else {
-          doc.text(line, marginLeft, cursorY);
+        if (isRightNature) {
+          doc.setFontSize(10);
+          const natureLines = doc.splitTextToSize(paragraph.trim(), 80);
+          natureLines.forEach((nLine: string) => {
+            if (cursorY > maxY) {
+              doc.addPage();
+              pageCount++;
+              cursorY = marginTop;
+            }
+            doc.text(nLine, 110, cursorY);
+            cursorY += 5;
+          });
+          doc.setFontSize(12);
+          return;
         }
-        cursorY += lineHeight;
+
+        const lines = doc.splitTextToSize(paragraph, printableWidth);
+        lines.forEach((line: string) => {
+          if (cursorY > maxY) {
+            doc.addPage();
+            pageCount++;
+            if (pageCount >= 3) {
+              doc.setFontSize(10);
+              doc.text(String(pageCount), 190, 20, { align: "right" });
+              doc.setFontSize(12);
+            }
+            cursorY = marginTop;
+          }
+          
+          if (isCover || (isTitlePage && cursorY < 120)) {
+            doc.text(line, 105, cursorY, { align: "center" });
+          } else {
+            doc.text(line, marginLeft, cursorY);
+          }
+          cursorY += lineHeight;
+        });
       });
     });
 
@@ -1000,18 +1040,16 @@ export default function App() {
   const exportWord = async () => {
     if (!generatedText) return;
     
-    let isCover = true;
-    const paragraphs = generatedText.split('\n').map(text => {
+    const rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+    const docSections: any[] = [];
+
+    rawPages.forEach((pageContent, pageIdx) => {
+      const isCover = pageIdx === 0;
+      const isTitlePage = pageIdx === 1;
+      const isBody = pageIdx >= 2;
+
+      const paragraphs = pageContent.split('\n').map(text => {
         const clean = text.trim();
-        if (text.includes("--- [QUEBRA DE PÁGINA] ---") || text.includes("--- [NOVA PÁGINA] ---") || text.match(/---\s*\[Página.*?\]\s*---/i)) {
-            isCover = false;
-            return new Paragraph({
-                pageBreakBefore: true,
-                children: [],
-            });
-        }
-        
-        // Linhas em branco
         if (!clean) {
           return new Paragraph({
             children: [new TextRun({ text: "", font: "Arial", size: 24 })],
@@ -1019,41 +1057,61 @@ export default function App() {
           });
         }
 
-        const isCentered = isCover || (/^[A-Z0-9\sÁÉÍÓÚÀÈÌÒÙÃÕÂÊÎÔÛÇ]{4,}$/.test(clean) && isCover);
-        const isRightNature = clean.startsWith("Trabalho") || clean.startsWith("Orientador") || clean.startsWith("Monografia") || clean.startsWith("Artigo");
+        const isRightNature = isTitlePage && (clean.startsWith("Trabalho") || clean.startsWith("Monografia") || clean.startsWith("Artigo") || clean.startsWith("Orientador") || clean.startsWith("Dissertação"));
+        const isCentered = isCover || (isTitlePage && !isRightNature && (clean === clean.toUpperCase() || clean.length < 50));
 
-        // Formatação rigorosa ABNT NBR 14724 em folha A4
         return new Paragraph({
-            children: [new TextRun({ 
-              text: text, 
-              font: "Arial", 
-              size: isRightNature ? 20 : 24, // 10pt para nota de natureza, 12pt para texto
-              bold: isCover && (clean.length > 20 || clean === clean.toUpperCase())
-            })],
-            alignment: isCentered ? AlignmentType.CENTER : (isRightNature ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED),
-            spacing: { line: isRightNature ? 240 : 360 }, // 1.0 simples para notas, 1.5 para o corpo
-            indent: isCentered || isRightNature ? { firstLine: 0 } : { firstLine: convertMillimetersToTwip(12.5) } // 1.25cm recuo
+          children: [new TextRun({ 
+            text: clean, 
+            font: "Arial", 
+            size: isRightNature ? 20 : 24, // 10pt para nota, 12pt para corpo
+            bold: isCover && (clean.length > 20 || clean === clean.toUpperCase())
+          })],
+          alignment: isCentered ? AlignmentType.CENTER : (isRightNature ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED),
+          spacing: { line: isRightNature ? 240 : 360 }, // 1.0 para nota, 1.5 para corpo
+          indent: isCentered || isRightNature ? { firstLine: 0 } : { firstLine: convertMillimetersToTwip(12.5) } // 1.25cm recuo
         });
+      });
+
+      docSections.push({
+        properties: {
+          page: {
+            size: {
+              width: convertMillimetersToTwip(210), // Folha A4 210mm
+              height: convertMillimetersToTwip(297) // Folha A4 297mm
+            },
+            margin: {
+              top: convertMillimetersToTwip(30), // Margem Superior 3cm
+              left: convertMillimetersToTwip(30), // Margem Esquerda 3cm
+              right: convertMillimetersToTwip(20), // Margem Direita 2cm
+              bottom: convertMillimetersToTwip(20), // Margem Inferior 2cm
+            }
+          }
+        },
+        headers: isBody ? {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    children: [PageNumber.CURRENT],
+                    font: "Arial",
+                    size: 20 // 10pt no cabeçalho superior direito
+                  })
+                ]
+              })
+            ]
+          })
+        } : undefined,
+        children: paragraphs,
+      });
     });
 
     const doc = new Document({
-      sections: [{
-        properties: {
-            page: {
-                size: {
-                  width: convertMillimetersToTwip(210), // Folha A4 210mm
-                  height: convertMillimetersToTwip(297) // Folha A4 297mm
-                },
-                margin: {
-                    top: convertMillimetersToTwip(30), // Margem Superior 3cm
-                    left: convertMillimetersToTwip(30), // Margem Esquerda 3cm
-                    right: convertMillimetersToTwip(20), // Margem Direita 2cm
-                    bottom: convertMillimetersToTwip(20), // Margem Inferior 2cm
-                }
-            }
-        },
-        children: paragraphs,
-      }],
+      sections: docSections.length > 0 ? docSections : [{
+        children: [new Paragraph({ children: [new TextRun({ text: generatedText, font: "Arial", size: 24 })] })]
+      }]
     });
 
     const blob = await Packer.toBlob(doc);
@@ -1505,15 +1563,136 @@ export default function App() {
 
             {(activeTab === "editor" || activeTab === "generator") && (
               <div className="flex flex-col h-full relative">
-                <textarea 
-                  ref={textareaRef}
-                  className="flex-1 w-full p-8 pb-28 resize-none focus:outline-none text-gray-800 text-justify text-[12pt] leading-[1.5] font-['Arial'] bg-gray-50/50 focus:bg-white transition-colors"
-                  value={generatedText}
-                  onChange={(e) => setGeneratedText(e.target.value)}
-                  placeholder="Seu documento gerado aparecerá aqui...&#10;&#10;Dica: Você também pode colar seu próprio texto aqui e usar as ferramentas de edição ao lado para Formatar ou Humanizar."
-                />
+                {/* Seletor de Modo de Visualização do Editor */}
+                <div className="bg-gray-100/90 border-b border-gray-200 px-4 py-2 flex items-center justify-between z-10">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditorMode("a4")}
+                      className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${editorMode === "a4" ? "bg-white text-blue-700 shadow-xs border border-gray-200" : "text-gray-600 hover:text-gray-900"}`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Folhas A4 Reais (Google Docs)
+                    </button>
+                    <button
+                      onClick={() => setEditorMode("raw")}
+                      className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${editorMode === "raw" ? "bg-white text-blue-700 shadow-xs border border-gray-200" : "text-gray-600 hover:text-gray-900"}`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Editor Contínuo
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setGeneratedText(prev => (prev ? prev + "\n\n--- [QUEBRA DE PÁGINA] ---\n\n" : ""));
+                        setErrorMessage("Nova Página A4 inserida no documento.");
+                        setTimeout(() => setErrorMessage(""), 2500);
+                      }}
+                      className="px-2.5 py-1 text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-md shadow-xs flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3 text-blue-600" /> + Inserir Página A4
+                    </button>
+                  </div>
+                </div>
+
+                {editorMode === "a4" ? (
+                  /* MODO GOOGLE DOCS: PÁGINAS A4 VISUAIS INDIVIDUAIS */
+                  <div className="flex-1 bg-slate-200/80 p-4 md:p-8 overflow-y-auto flex flex-col items-center gap-8 pb-32">
+                    {(() => {
+                      const pages = generatedText ? generatedText.split("--- [QUEBRA DE PÁGINA] ---") : [""];
+                      return pages.map((pageText, pIdx) => {
+                        const isCover = pIdx === 0;
+                        const isTitlePage = pIdx === 1;
+                        const isBodyPage = pIdx >= 2;
+                        const pageNum = pIdx + 1;
+
+                        return (
+                          <div 
+                            key={pIdx} 
+                            className="w-full max-w-[794px] min-h-[960px] md:min-h-[1123px] bg-white shadow-2xl rounded-sm border border-gray-300 relative flex flex-col p-6 md:p-[30mm_20mm_20mm_30mm] transition-all group"
+                          >
+                            {/* CABEÇALHO DA PÁGINA */}
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4 text-[10px] text-gray-400 select-none">
+                              <span className="font-semibold uppercase tracking-wider text-gray-500">
+                                {isCover ? "Página 1 — Capa Oficial ABNT NBR 14724" : isTitlePage ? "Página 2 — Folha de Rosto ABNT" : `Página ${pageNum} — Corpo do Trabalho ABNT`}
+                              </span>
+                              
+                              {/* NUMERAÇÃO OFICIAL ABNT NO CANTO SUPERIOR DIREITO A PARTIR DA PÁGINA 3 */}
+                              {isBodyPage ? (
+                                <span className="font-mono font-bold text-xs bg-blue-50 border border-blue-200 text-blue-800 px-2 py-0.5 rounded shadow-xs">
+                                  {pageNum}
+                                </span>
+                              ) : (
+                                <span className="italic text-[10px] text-gray-400">Contada, sem número impresso</span>
+                              )}
+                            </div>
+
+                            {/* NÚMERO SUPERIOR DIREITO FLUTUANTE OFICIAL ABNT (3cm topo / 2cm margem) */}
+                            {isBodyPage && (
+                              <div className="absolute top-[20mm] right-[20mm] font-mono text-sm font-bold text-gray-800 hidden md:block">
+                                {pageNum}
+                              </div>
+                            )}
+
+                            {/* ÁREA DE TEXTO DA PÁGINA */}
+                            <textarea
+                              value={pageText.trimStart()}
+                              onChange={(e) => {
+                                const newPages = [...pages];
+                                newPages[pIdx] = e.target.value;
+                                setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
+                              }}
+                              className={`flex-1 w-full resize-none focus:outline-none font-['Arial'] text-gray-800 leading-[1.5] ${isCover ? "text-center text-sm md:text-base font-medium uppercase tracking-wide" : isTitlePage ? "text-sm md:text-base" : "text-justify text-sm md:text-[12pt] indent-8"}`}
+                              placeholder={isCover ? "INSTITUIÇÃO DE ENSINO\n\n\nNOME DO AUTOR\n\n\nTÍTULO DO TRABALHO\n\n\nCIDADE\nANO" : `Escreva o conteúdo da página ${pageNum} aqui...`}
+                            />
+
+                            {/* CONTROLES RÁPIDOS NO RODAPÉ DA PÁGINA */}
+                            <div className="pt-3 mt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+                              <span>Norma ABNT NBR 14724 • Folha A4 (210x297mm)</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    const newPages = [...pages];
+                                    newPages.splice(pIdx + 1, 0, "");
+                                    setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-semibold"
+                                >
+                                  + Nova Página Abaixo
+                                </button>
+                                {pages.length > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Deseja remover a Página ${pageNum}?`)) {
+                                        const newPages = pages.filter((_, idx) => idx !== pIdx);
+                                        setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
+                                      }
+                                    }}
+                                    className="text-rose-500 hover:text-rose-700 ml-2"
+                                  >
+                                    Excluir Página
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                ) : (
+                  /* MODO CONTÍNUO TRADICIONAL */
+                  <textarea 
+                    ref={textareaRef}
+                    className="flex-1 w-full p-8 pb-28 resize-none focus:outline-none text-gray-800 text-justify text-[12pt] leading-[1.5] font-['Arial'] bg-gray-50/50 focus:bg-white transition-colors"
+                    value={generatedText}
+                    onChange={(e) => setGeneratedText(e.target.value)}
+                    placeholder="Seu documento gerado aparecerá aqui...&#10;&#10;Dica: Use '--- [QUEBRA DE PÁGINA] ---' para dividir as folhas A4."
+                  />
+                )}
                 
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gray-50 border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.08)] z-20">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
                     <Button 
                       size="sm" 
@@ -1538,7 +1717,7 @@ export default function App() {
                     </Button>
                     <Button size="sm" onClick={handlePaginate} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0 text-emerald-700 border-emerald-200 hover:bg-emerald-50 font-medium">
                       <Hash className="w-4 h-4 mr-2 text-emerald-600" />
-                      🔢 Paginação Rodapé (1, 2...)
+                      🔢 Repaginar ABNT A4
                     </Button>
                   </div>
                 </div>
