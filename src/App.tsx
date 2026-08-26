@@ -6,7 +6,7 @@ import {
   UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
   User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode, Printer,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut, Maximize2, Minimize2,
-  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2, ChevronsDown, ChevronDown, ArrowDown
+  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2, ChevronsDown, ChevronDown, ArrowDown, FileCode
 } from "lucide-react";
 import pptxgen from "pptxgenjs";
 import ReactMarkdown from "react-markdown";
@@ -1244,6 +1244,92 @@ export default function App() {
     saveAs(blob, "trabalho-abnt-a4.docx");
   };
 
+  const exportLaTeX = () => {
+    if (!generatedText) return;
+
+    const cleanTitle = title || "Título do Trabalho Acadêmico";
+    const cleanAuthor = studentName || "Nome do Autor";
+    const cleanInst = institution || "Nome da Universidade";
+    const cleanCity = city || "Cidade - Estado";
+    const cleanYear = year || new Date().getFullYear().toString();
+    const cleanAdvisor = advisor || "Prof. Dr. Orientador";
+    const cleanPreambulo = course 
+      ? `Trabalho de Conclusão de Curso apresentado como requisito parcial para obtenção do título de Bacharel em ${course}.`
+      : "Trabalho acadêmico apresentado como requisito parcial de avaliação.";
+
+    const rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+    const bodyText = rawPages.length >= 3 ? rawPages.slice(2).join("\n\n") : generatedText;
+
+    const latexChapters = bodyText.split(/\n(?=\d+\s+[A-ZÀ-Ú])/).map(section => {
+      const trimmed = section.trim();
+      const match = trimmed.match(/^(\d+(?:\.\d+)*)\s+([^\n]+)\n([\s\S]*)$/);
+      if (match) {
+        const num = match[1];
+        const secTitle = match[2];
+        const content = match[3];
+        if (!num.includes(".")) {
+          return `\\chapter{${secTitle}}\n${content}\n`;
+        } else if (num.split(".").length === 2) {
+          return `\\section{${secTitle}}\n${content}\n`;
+        } else {
+          return `\\subsection{${secTitle}}\n${content}\n`;
+        }
+      }
+      return trimmed;
+    }).join("\n\n");
+
+    const latexTemplate = `\\documentclass[12pt,openright,twoside,a4paper,english,french,spanish,brazil]{abntex2}
+
+% --- Configurações de Margens ABNT ---
+\\usepackage[top=3cm,bottom=2cm,left=3cm,right=2cm]{geometry}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{helvet} % Para fonte Arial (ou altere para Times)
+\\renewcommand{\\familydefault}{\\sfdefault}
+\\usepackage{indentfirst} % Indenta o primeiro parágrafo de cada seção (1.25cm)
+\\usepackage{microtype}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+
+% --- Dados do Documento ---
+\\titulo{${cleanTitle}}
+\\autor{${cleanAuthor}}
+\\local{${cleanCity}}
+\\data{${cleanYear}}
+\\orientador{${cleanAdvisor}}
+\\instituicao{${cleanInst}}
+\\preambulo{${cleanPreambulo}}
+
+% --- Início do Documento ---
+\\begin{document}
+\\frenchspacing 
+
+% --- ELEMENTOS PRÉ-TEXTUAIS ---
+\\imprimircapa
+\\imprimirfolhaderosto
+
+% Sumário Automático
+\\pdfbookmark[0]{\\contentsname}{toc}
+\\tableofcontents*
+\\cleardoublepage
+
+% --- ELEMENTOS TEXTUAIS (Paginação Visível Inicia Aqui) ---
+\\textual
+
+${latexChapters}
+
+% --- ELEMENTOS PÓS-TEXTUAIS ---
+\\postextual
+
+\\end{document}
+`;
+
+    const blob = new Blob([latexTemplate], { type: "text/x-tex;charset=utf-8" });
+    saveAs(blob, `trabalho-abntex2-${(cleanTitle || "documento").toLowerCase().replace(/[^a-z0-9]/g, "-")}.tex`);
+    setErrorMessage("✨ Código LaTeX (abnTeX2) gerado com sucesso para Overleaf / TeXStudio!");
+    setTimeout(() => setErrorMessage(""), 3500);
+  };
+
   // Função para Estruturar o Texto Acadêmico em Roteiro de Slides
   const parseDocumentIntoSlides = (text: string) => {
     const pages = text ? text.split("--- [QUEBRA DE PÁGINA] ---") : [];
@@ -1949,6 +2035,9 @@ export default function App() {
               </Button>
               <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
                 <FileDown className="w-3.5 h-3.5 mr-1" /> Word (.docx A4)
+              </Button>
+              <Button onClick={exportLaTeX} disabled={!generatedText} size="sm" className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">
+                <FileCode className="w-3.5 h-3.5 mr-1" /> LaTeX (abnTeX2)
               </Button>
             </div>
           </div>
