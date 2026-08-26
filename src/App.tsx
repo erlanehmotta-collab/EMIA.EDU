@@ -410,9 +410,14 @@ export default function App() {
         files.forEach(f => formData.append("files", f));
       }
 
-      const customHeaders: Record<string, string> = {};
+      const customHeaders: Record<string, string> = {
+        "x-ai-provider": aiProvider || "gemini",
+      };
       if (customGeminiKey && customGeminiKey.trim()) {
         customHeaders["x-gemini-api-key"] = customGeminiKey.trim();
+      }
+      if (customOpenaiKey && customOpenaiKey.trim()) {
+        customHeaders["x-openai-api-key"] = customOpenaiKey.trim();
       }
       const token = localStorage.getItem("emia_google_token");
       if (token) {

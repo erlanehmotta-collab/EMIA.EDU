@@ -37,17 +37,17 @@ async function startServer() {
       .trim();
   }
 
-  // Validadores para evitar envio de OAuth tokens ou strings inválidas como API Key
+  // Validadores para evitar strings vazias ou nulas como API Key
   function isValidGeminiKey(key?: string | null): boolean {
     if (!key) return false;
     const clean = key.trim();
-    return clean.length >= 20 && clean.startsWith("AIzaSy");
+    return clean.length >= 10;
   }
 
   function isValidOpenaiKey(key?: string | null): boolean {
     if (!key) return false;
     const clean = key.trim();
-    return clean.length >= 20 && clean.startsWith("sk-");
+    return clean.length >= 10;
   }
 
   // Helper to dynamically get Google GenAI client or OpenAI credentials
