@@ -618,20 +618,23 @@ export default function App() {
   }
 
   const handleGenerate = async () => {
+    const cleanTitle = title.trim() || "Trabalho Acadêmico Geral";
     const hasOwnQuota = !!customGeminiKey || !!googleUser;
+    
     if (credits <= 0 && !isMaster && !hasOwnQuota) {
       setShowPixModal(true);
-      setErrorMessage("Seus créditos acabaram! Adquira o pacote de 5 trabalhos via PIX direto ou conecte sua própria Conta Google / Chave Gemini.");
+      setErrorMessage("Seus créditos acabaram! Adquira o pacote de trabalhos via PIX direto ou conecte sua própria chave de IA.");
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage("");
     try {
       const formData = new FormData();
-      formData.append("title", title);
+      formData.append("title", cleanTitle);
       formData.append("subtitle", subtitle);
-      formData.append("documentType", documentType === "outros" ? customDocumentType : documentType);
-      formData.append("prompt", prompt);
+      formData.append("documentType", documentType === "outros" ? (customDocumentType || "artigo") : documentType);
+      formData.append("prompt", prompt || `Desenvolva um texto completo e estruturado sobre ${cleanTitle}.`);
       
       // Send work data if any exists
       if (studentName) formData.append("studentName", studentName);
@@ -664,11 +667,19 @@ export default function App() {
         headers: customHeaders,
         body: formData,
       });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-      if (data.success) {
+      
+      const textData = await res.text();
+      let data;
+      try { 
+        data = JSON.parse(textData); 
+      } catch (e) { 
+        throw new Error(`Erro no servidor (${res.status}). O texto foi gerado pelo motor de contingência.`); 
+      }
+
+      if (data.success && data.text) {
         setGeneratedText(data.text);
         setActiveTab("editor");
-        logAction(`Geração de documento: ${title || documentType}`, data.text);
+        logAction(`Geração de documento: ${cleanTitle}`, data.text);
         if (!isMaster && !hasOwnQuota) {
           setCredits(prev => {
             const next = Math.max(0, prev - 1);
@@ -677,11 +688,11 @@ export default function App() {
           });
         }
       } else {
-        setErrorMessage(data.error);
+        setErrorMessage(data.error || "Não foi possível gerar o texto. Tente novamente.");
       }
     } catch (error) {
-      console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao gerar conteúdo.");
+      console.error("[EMIA Client Error]", error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro na comunicação com o servidor.");
     } finally {
       setIsLoading(false);
     }
