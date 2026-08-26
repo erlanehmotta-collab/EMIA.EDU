@@ -1,6 +1,6 @@
 /**
- * EMIA.EDUTECH - Motor Acadêmico Autônomo & Client-Side Resiliente
- * Garante que o SaaS gere textos 100% das vezes (via Google Gemini 3.6 Flash)
+ * EMIA.EDUTECH - Motor Acadêmico Autônomo & Regras de Capa Rigorosas ABNT
+ * Capas e cabeçalhos seletivos por gênero textual (ABNT NBR 14724, 6022, 6028)
  */
 
 export interface GenerateOptions {
@@ -120,11 +120,21 @@ export async function generateAcademicText(options: GenerateOptions): Promise<st
   };
 
   const selectedTypeName = typeMap[documentType] || documentType || "Artigo Acadêmico";
-  const hasWorkData = (studentName || course || institution || city || year || advisor) && documentType !== "redacao";
+  
+  // CLASSIFICAÇÃO RIGOROSA DAS NORMAS ABNT PARA CAPAS:
+  // 1. Monografias, TCCs, Relatórios e Projetos: EXIGEM Capa e Folha de Rosto oficiais (NBR 14724).
+  // 2. Artigos (Científico/Acadêmico): NÃO têm capa solta; possuem Cabeçalho com Título, Autor e Afiliação na 1ª página (NBR 6022).
+  // 3. Resumos / Fichamentos: NÃO têm capa; iniciam diretamente com o parágrafo único e palavras-chave (NBR 6028).
+  // 4. Resenhas Críticas: NÃO têm capa; iniciam com a referência da obra resenhada.
+  // 5. Redações ENEM: NÃO têm capa nem quebras de página.
+  const requiresCoverAndTitlePage = ["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType);
+  const requiresArticleHeader = ["artigo", "artigo_cientifico", "estudo_caso"].includes(documentType);
+  const isDirectTextOnly = ["resumo", "redacao", "resenha"].includes(documentType);
 
-  // Monta capa ABNT se tiver dados do trabalho
-  let coverSection = "";
-  if (hasWorkData) {
+  let prefixHeader = "";
+
+  // 1. CAPA + FOLHA DE ROSTO (ABNT NBR 14724)
+  if (requiresCoverAndTitlePage && (studentName || course || institution || city || year || advisor)) {
     const inst = institution ? institution.toUpperCase() : "";
     const crs = course ? course.toUpperCase() : "";
     const aut = studentName ? studentName.toUpperCase() : "";
@@ -133,7 +143,7 @@ export async function generateAcademicText(options: GenerateOptions): Promise<st
     const cid = city || "CIDADE";
     const an = year || String(currentYear);
 
-    coverSection = `${inst}
+    prefixHeader = `${inst}
 ${crs}
 
 
@@ -175,23 +185,88 @@ ${an}
 --- [QUEBRA DE PÁGINA] ---
 
 `;
+  } 
+  // 2. CABEÇALHO DE ARTIGO (ABNT NBR 6022)
+  else if (requiresArticleHeader) {
+    const aut = studentName ? studentName.trim() : "";
+    const aff = institution ? ` - ${institution.trim()}` : "";
+    const crs = course ? ` (${course.trim()})` : "";
+    const authorLine = aut ? `
+${aut}${crs}${aff}
+` : "";
+    prefixHeader = `${cleanTitle.toUpperCase()}${subtitle ? `: ${subtitle}` : ""}
+${authorLine}
+`;
+  }
+  // 3. RESENHA CRÍTICA (Cabeçalho de Referência)
+  else if (documentType === "resenha") {
+    prefixHeader = `RESENHA CRÍTICA: ${cleanTitle.toUpperCase()}${subtitle ? `: ${subtitle}` : ""}
+${studentName ? `Resenhista: ${studentName}
+` : ""}
+`;
+  }
+  // 4. RESUMO / REDAÇÃO: prefixHeader permanece vazio (zero capa, direto no texto)
+
+  // Diretrizes Específicas do Gênero
+  let genreInstructions = "";
+  if (documentType === "resumo") {
+    genreInstructions = `ESTRUTURA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
+- REGRA ABSOLUTA: NÃO use Capa, NÃO use Folha de Rosto e NÃO use seções numeradas (sem 1 INTRODUÇÃO, etc).
+- Escreva um texto em PARÁGRAFO ÚNICO contínuo e coeso (150 a 500 palavras) destacando objetivo, método, resultados e conclusões.
+- No final do texto, adicione obrigatoriamente: "Palavras-chave: [3 a 5 palavras separadas por ponto final]."`;
+  } else if (documentType === "redacao") {
+    genreInstructions = `ESTRUTURA DE REDAÇÃO DISSERTATIVO-ARGUMENTATIVA (PADRÃO ENEM NOTA 1000):
+- REGRA ABSOLUTA: NÃO use Capa, NÃO use Folha de Rosto e NÃO numere seções.
+- Prosa contínua e fluida em 4 parágrafos bem estruturados: Introdução com tese, Desenvolvimento 1, Desenvolvimento 2 e Conclusão com Proposta de Intervenção completa (Agente, Ação, Meio, Efeito e Detalhamento).`;
+  } else if (documentType === "artigo" || documentType === "artigo_cientifico") {
+    genreInstructions = `ESTRUTURA DE ARTIGO CIENTÍFICO (ABNT NBR 6022):
+- NÃO crie página de capa separada.
+- Inicie na 1ª página com: RESUMO (100 a 250 palavras) e Palavras-chave.
+- Siga imediatamente na mesma página com as seções numeradas:
+  1 INTRODUÇÃO
+  2 METODOLOGIA (ou 2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO)
+  3 RESULTADOS E DISCUSSÃO
+  4 CONSIDERAÇÕES FINAIS
+  REFERÊNCIAS`;
+  } else if (documentType === "resenha") {
+    genreInstructions = `ESTRUTURA DE RESENHA CRÍTICA:
+- NÃO use capa separada.
+- Seções analíticas: 1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO, 2 RESUMO DA OBRA, 3 APRECIAÇÃO CRÍTICA, 4 CONCLUSÃO.`;
+  } else {
+    genreInstructions = `ESTRUTURA ACADÊMICA ABNT NBR 14724:
+- RESUMO e Palavras-chave.
+- 1 INTRODUÇÃO
+- 2 DESENVOLVIMENTO (Fundamentação Teórica e Análise)
+- 3 CONSIDERAÇÕES FINAIS
+- REFERÊNCIAS`;
   }
 
-  // 1. Tenta chamar o Google Gemini via API REST oficial
   const systemPrompt = `Você é um redator acadêmico de excelência. Crie um ${selectedTypeName} completo, formal, aprofundado e rigoroso nas normas ABNT sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
 ${prompt ? `Instruções adicionais do usuário: ${prompt}` : ""}
-IMPORTANTE: Não use saudações, frases como "aqui está" ou asteriscos excessivos. Entregue texto acadêmico puro e fluido.`;
+
+${genreInstructions}
+
+IMPORTANTE: Não use saudações, frases conversacionais ("aqui está") ou asteriscos excessivos. Entregue texto acadêmico puro, fluido e com alto rigor metodológico.`;
 
   try {
     const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
     if (generated && generated.length > 50) {
-      return coverSection + generated;
+      return prefixHeader + generated;
     }
   } catch (err) {
     console.warn("Chamada direta Gemini falhou, ativando gerador de contingência:", err);
   }
 
-  // 2. Se a API de IA não responder, gera via Motor Estocástico Acadêmico Determinístico (100% de garantia)
+  // CONTINGÊNCIA DETERMINÍSTICA ESPECÍFICA POR GÊNERO:
+  if (documentType === "resumo") {
+    return "RESUMO\nO presente trabalho analisa as dimensões teóricas e empíricas concernentes a " + cleanTopic + ". A investigação baseou-se em uma abordagem qualitativa de caráter exploratório, com levantamento bibliográfico e análise documental. Os resultados evidenciam a premência de sistematizações metodológicas estruturadas para responder aos desafios contemporâneos da área, indicando caminhos consistentes para o aprimoramento das práticas investigadas. Conclui-se que o aprofundamento das discussões sobre a temática permanece indispensável para o avanço do conhecimento científico.\n\nPalavras-chave: " + cleanTopic + ". Metodologia Científica. Análise Crítica. Inovação.";
+  }
+
+  if (documentType === "redacao") {
+    return "Historicamente, a filósofa Hannah Arendt, em sua teoria sobre a banalização do mal, elucida como determinadas problemáticas sociais tornam-se naturalizadas pela coletividade. Paralelamente, no cenário contemporâneo, a discussão concernente a " + cleanTopic + " reflete essa inércia estrutural. Com efeito, torna-se imperativo desarticular os entraves que perpetuam esse panorama, destacando-se a inoperância de mecanismos institucionais e a carência de conscientização civil.\n\nEm primeira análise, cabe pontuar a omissão estatal como catalisadora dessa realidade. Consoante o filósofo Thomas Hobbes, o Estado deve assegurar o bem-estar coletivo; todavia, a escassez de investimentos e a lentidão na implementação de políticas voltadas a " + cleanTopic + " rompem esse pacto implícito. Em decorrência disso, parcelas expressivas da sociedade permanecem desprovidas de suporte técnico e formativo, aprofundando disparidades históricas.\n\nAdemais, a negligência educacional e comunitária atua como força mantenedora do problema. Segundo o educador Paulo Freire, quando a educação não é libertadora, o sonho do oprimido é ser o opressor. Sob essa ótica, a escassez de debates aprofundados sobre " + cleanTopic + " nas matrizes curriculares impede a consolidação de uma postura crítica ativa, perpetuando visões estigmatizadas e superficiais.\n\nInfere-se, portanto, a urgência de medidas capazes de transformar esse cenário. Compete ao Governo Federal, em articulação com as Secretarias de Educação e veículos de comunicação, instituir um Programa Nacional de Conscientização sobre " + cleanTopic + ", por meio da alocação de verbas públicas e da realização de campanhas informativas e oficinas formativas. Essa iniciativa tem como fito esclarecer os cidadãos e fomentar ações práticas permanentes. Somente assim, consolidar-se-á uma sociedade plenamente justa e consciente de seus direitos.";
+  }
+
+  // Padrão estruturado para Artigos e Monografias
   const introList = [
     `A emergência e a evolução das discussões acerca de ${cleanTopic} constituem um ponto nodal para as ciências contemporâneas. O presente estudo propõe uma investigação aprofundada sobre as dinâmicas estruturais que atravessam essa temática, delineando seus impactos na prática e na teoria. A relevância deste trabalho reside na premência de respostas qualificadas frente às transformações observadas no contexto atual.`,
     `Investigar ${cleanTopic} requer uma postura analítica rigorosa diante da multiplicidade de fatores sociais, técnicos e conceituais envolvidos. Este trabalho tem como escopo examinar criticamente os pressupostos subjacentes a essa problemática, estabelecendo correlações fundamentadas com o estado da arte na literatura especializada.`
@@ -232,7 +307,7 @@ FERREIRA, J. T. Epistemologia e Práticas Contemporâneas. Curitiba: InterSabere
   const rConc = concList[Math.floor(Math.random() * concList.length)];
   const rRef = refList[Math.floor(Math.random() * refList.length)];
 
-  return coverSection + `1 INTRODUÇÃO
+  return prefixHeader + `1 INTRODUÇÃO
 
 ${rIntro}
 

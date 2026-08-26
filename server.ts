@@ -423,7 +423,10 @@ async function startServer() {
       const selectedType = typeMap[documentType] || documentType || "artigo acadêmico";
       const subtitleText = subtitle && subtitle.trim() ? ` - Subtítulo: ${subtitle.trim()}` : "";
 
-      const hasWorkData = (studentName || course || institution || city || year || advisor) && documentType !== "redacao";
+      // Classificação estrita ABNT de Capas e Folhas de Rosto:
+      // Apenas Monografia, TCC, Relatório e Projeto de Pesquisa possuem Capa/Folha de Rosto avulsas (NBR 14724)
+      const requiresCoverPage = ["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType);
+      const hasWorkData = (studentName || course || institution || city || year || advisor) && requiresCoverPage;
       let coverDataLines = "";
       if (institution && institution.trim()) coverDataLines += `\n      - Instituição: ${institution.trim()}`;
       if (course && course.trim()) coverDataLines += `\n      - Curso: ${course.trim()}`;
@@ -435,15 +438,15 @@ async function startServer() {
       if (year && year.trim()) coverDataLines += `\n      - Ano: ${year.trim()}`;
 
       const coverInstruction = hasWorkData ? `
-      IMPORTANTE: Como os dados do trabalho foram fornecidos, INICIE o documento estruturando a Capa e a Folha de Rosto estritamente nas normas ABNT.
-      - REGRA INVIOLÁVEL DE PREENCHIMENTO: Se um campo NÃO foi informado (ex: subtítulo, orientador, cidade, ano, curso), NÃO invente dados fictícios, NÃO use textos como "NOME DA INSTITUIÇÃO", "CIDADE - UF" ou "Subtítulo não informado". DEIXE TOTALMENTE EM BRANCO sem nenhum vestígio.
-      - Capa: Instituição no topo (caixa alta), Curso (se informado), Autor (caixa alta), Título e Subtítulo (somente se informado) no centro, Cidade e Ano no rodapé.
+      IMPORTANTE: Como o documento é do tipo ${selectedType} (NBR 14724) e os dados foram fornecidos, INICIE o documento estruturando a Capa e a Folha de Rosto estritamente nas normas ABNT.
+      - REGRA INVIOLÁVEL DE PREENCHIMENTO: Se um campo NÃO foi informado, DEIXE TOTALMENTE EM BRANCO sem nenhum vestígio fictício.
+      - Capa: Instituição no topo (caixa alta), Curso (se informado), Autor (caixa alta), Título e Subtítulo no centro, Cidade e Ano no rodapé.
       - Folha de Rosto: Autor no topo, Título no centro, Nota de Apresentação com recuo, Cidade e Ano no rodapé.
       - Adicione o marcador explícito "--- [QUEBRA DE PÁGINA] ---" entre a capa, a folha de rosto e o início do texto.
 
       Dados informados:${coverDataLines}
       ` : `
-      REGRA DE OURO: NÃO gere capa nem folha de rosto fictícias se os dados do trabalho não foram fornecidos. Inicie diretamente no conteúdo textual do gênero ${selectedType}.
+      REGRA RIGOROSA ABNT: NÃO crie página de capa nem folha de rosto para este gênero (${selectedType}). Inicie diretamente no conteúdo textual (NBR 6022 / NBR 6028).
       `;
 
       const instruction = `Crie um(a) ${selectedType} detalhado(a) e aprofundado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
