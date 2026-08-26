@@ -105,19 +105,20 @@ export default {
         const prompt = reqBody.prompt || "Escreva um trabalho acadêmico.";
         const model = reqBody.model || "gemini-2.5-flash";
 
-        // Retrieve user's stored API Key from KV or request headers
-        let targetApiKey: string | null = request.headers.get("x-gemini-api-key");
+        // Prioridade 1: MASTER_GEMINI_KEY (modelo SaaS — você paga, cobra do usuário)
+        let targetApiKey = env.MASTER_GEMINI_KEY || null;
 
+        // Prioridade 2: chave do usuário no header (opcional)
+        if (!targetApiKey) {
+          targetApiKey = request.headers.get("x-gemini-api-key");
+        }
+
+        // Prioridade 3: chave do usuário no KV (opcional)
         if (!targetApiKey && userEmail && env.USER_KEYS_KV) {
           targetApiKey = await env.USER_KEYS_KV.get(`user_key:${userEmail}`);
         }
 
-        // Fallback to Master secret if set
-        if (!targetApiKey && env.MASTER_GEMINI_KEY) {
-          targetApiKey = env.MASTER_GEMINI_KEY;
-        }
-
-        // A) Call Google Gemini REST API using the resolved API Key
+        // A) Chama Google Gemini REST API usando a API Key resolvida
         if (targetApiKey) {
           const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${targetApiKey}`;
           
@@ -149,37 +150,13 @@ export default {
           });
         }
 
-        // B) If no API key found, attempt Google OAuth Bearer Token directly
-        if (googleToken) {
-          const oauthGeminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-          
-          const oauthGeminiResponse = await fetch(oauthGeminiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${googleToken}`,
-            },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          });
-
-          if (oauthGeminiResponse.ok) {
-            const data: any = await oauthGeminiResponse.json();
-            const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            return new Response(JSON.stringify({ success: true, text: generatedText }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Nenhuma credencial do Google AI encontrada. Faça login com o Google ou vincule sua chave." 
+            error: "Nenhuma credencial MASTER_GEMINI_KEY configurada no Cloudflare Worker." 
           }), 
           {
-            status: 400,
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
