@@ -1696,10 +1696,10 @@ export default function App() {
         </div>
       )}
 
-        {/* Editor Area (Palco Aumentado com visualização completa A4 estilo Word e PDF) */}
+        {/* Editor Area (Palco Padrão com +150px de altura e visualização completa A4 estilo Word e PDF) */}
         <div 
-          className={`${isStageExpanded ? 'fixed inset-2 md:inset-6 z-50 bg-white rounded-2xl shadow-2xl p-4 md:p-6' : 'flex-1 w-full min-w-0'} flex flex-col transition-all`}
-          style={{ height: isStageExpanded ? 'auto' : stageHeight ? `${stageHeight}px` : 'calc(100vh - 4.5rem)', minHeight: isStageExpanded ? 'auto' : '680px' }}
+          className="flex-1 w-full min-w-0 flex flex-col transition-all"
+          style={{ height: 'calc(100vh - 4.5rem + 150px)', minHeight: '830px' }}
         >
           
           {/* Top Bar with Tabs and Quick Export Actions */}
@@ -1727,15 +1727,6 @@ export default function App() {
 
             {/* Ações Rápidas de Exportação e Validação no Topo */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Button 
-                onClick={() => setIsStageExpanded(!isStageExpanded)} 
-                variant="outline" 
-                size="sm" 
-                className="text-xs h-8 text-indigo-700 border-indigo-200 hover:bg-indigo-50 font-medium"
-              >
-                <Maximize2 className="w-3.5 h-3.5 mr-1" />
-                {isStageExpanded ? "Recolher" : "Expandir Palco"}
-              </Button>
               <Button 
                 onClick={handleCheckAuthenticity} 
                 disabled={isLoading || !generatedText} 
@@ -2048,81 +2039,6 @@ export default function App() {
               </div>
             )}
           </div>
-
-          {/* BARRA INTERATIVA PARA PUXAR / AUMENTAR O PALCO PARA BAIXO */}
-          {!isStageExpanded && (
-            <div 
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startY = e.clientY;
-                const startHeight = stageHeight || 820;
-                const handleMouseMove = (moveEvent: MouseEvent) => {
-                  const deltaY = moveEvent.clientY - startY;
-                  setStageHeight(Math.max(550, Math.min(2200, startHeight + deltaY)));
-                };
-                const handleMouseUp = () => {
-                  window.removeEventListener('mousemove', handleMouseMove);
-                  window.removeEventListener('mouseup', handleMouseUp);
-                };
-                window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseup', handleMouseUp);
-              }}
-              onTouchStart={(e) => {
-                const startY = e.touches[0].clientY;
-                const startHeight = stageHeight || 820;
-                const handleTouchMove = (moveEvent: TouchEvent) => {
-                  const deltaY = moveEvent.touches[0].clientY - startY;
-                  setStageHeight(Math.max(550, Math.min(2200, startHeight + deltaY)));
-                };
-                const handleTouchEnd = () => {
-                  window.removeEventListener('touchmove', handleTouchMove);
-                  window.removeEventListener('touchend', handleTouchEnd);
-                };
-                window.addEventListener('touchmove', handleTouchMove);
-                window.addEventListener('touchend', handleTouchEnd);
-              }}
-              className="group cursor-row-resize flex flex-col items-center justify-center py-2 bg-gradient-to-r from-slate-100 via-blue-50 to-slate-100 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 border-t-2 border-dashed border-blue-300 transition-all select-none rounded-b-2xl mt-1"
-              title="Clique e arraste para puxar o palco para baixo"
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-700 group-hover:scale-105 transition-transform">
-                <ChevronsDown className="w-4 h-4 animate-bounce" />
-                <span>↕️ Puxar Palco para Baixo (Arraste aqui ou use os botões)</span>
-                <ChevronsDown className="w-4 h-4 animate-bounce" />
-              </div>
-              <div className="flex items-center gap-1.5 mt-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStageHeight(h => (h || 820) + 150);
-                  }}
-                  className="text-[10px] bg-white hover:bg-blue-600 hover:text-white px-2 py-0.5 rounded border border-blue-200 font-semibold shadow-xs transition-colors"
-                >
-                  +150px
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStageHeight(h => (h || 820) + 300);
-                  }}
-                  className="text-[10px] bg-white hover:bg-blue-600 hover:text-white px-2 py-0.5 rounded border border-blue-200 font-semibold shadow-xs transition-colors"
-                >
-                  +300px
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStageHeight(0);
-                  }}
-                  className="text-[10px] bg-white hover:bg-gray-700 hover:text-white px-2 py-0.5 rounded border border-gray-200 font-medium shadow-xs transition-colors"
-                >
-                  Restaurar Padrão
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
       </main>
