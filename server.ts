@@ -104,32 +104,61 @@ async function startServer() {
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
   }
 
-  // Motor Acadêmico de Altíssima Variação Estocástica (Garante que JAMAIS 2 textos sejam iguais)
+  // Motor Acadêmico de Altíssima Variação Estocástica Especializado por Gênero Textual
   function generateDynamicAcademicText(topic: string, documentType = "artigo acadêmico"): string {
     const currentYear = new Date().getFullYear();
     const cleanTopic = topic.trim() || "o tema proposto";
     
-    // Matriz combinatória de abordagens metodológicas e teóricas únicas
+    // GÊNERO 1: REDAÇÃO DISSERTATIVO-ARGUMENTATIVA (PADRÃO ENEM / NOTA 1000)
+    if (documentType.includes("redacao") || documentType.includes("redação")) {
+      const redacaoIntros = [
+        `Historicamente, a filósofa Hannah Arendt, em sua teoria sobre a banalização do mal, elucida como determinadas problemáticas sociais tornam-se naturalizadas pela coletividade. Paralelamente, no cenário brasileiro contemporâneo, a discussão concernente a ${cleanTopic} reflete essa inércia estrutural. Com efeito, torna-se imperativo desarticular os entraves que perpetuam esse panorama, destacando-se não apenas a omissão governamental, mas também a fragilidade da conscientização civil.`,
+        `De acordo com o sociólogo Zygmunt Bauman, a pós-modernidade é marcada pela fluidez das relações e pela fragilização dos laços institucionais. Nesse contexto, a questão de ${cleanTopic} evidencia as fissuras de um corpo social que negligencia demandas fundamentais. Desse modo, urge analisar os fatores determinantes dessa conjuntura, com ênfase na insuficiência de políticas públicas eficientes e na persistência de estigmas socioculturais.`
+      ];
+
+      const redacaoDevs = [
+        `Em primeira análise, cabe pontuar a inoperância estatal como catalisadora dessa realidade. Consoante o filósofo Thomas Hobbes, o Estado deve assegurar o bem-estar coletivo; todavia, a escassez de investimentos e a morosidade na aplicação de diretrizes direcionadas a ${cleanTopic} rompem esse pacto implícito. Em decorrência disso, parcelas expressivas da população permanecem desprovidas de respaldo técnico e informativo, aprofundando disparidades históricas.\n\nAdemais, a negligência educacional e comunitária atua como força mantenedora do problema. Segundo o educador Paulo Freire, quando a educação não é libertadora, o sonho do oprimido é ser o opressor. Sob essa ótica, a carência de debates aprofundados sobre ${cleanTopic} nas matrizes curriculares impede a formação de uma consciência cidadã ativa, fomentando a passividade social.`,
+        `Em primeiro plano, convém ressaltar a lacuna legislativa e fiscalizatória que circunda a matéria. Embora a Constituição Cidadã de 1988 preconize a dignidade da pessoa humana como preceito basilar, a prática cotidiana referente a ${cleanTopic} distancia-se desse horizonte normativo. Essa dissonância resulta na perpetuação de vulnerabilidades que desafiam o progresso equitativo da nação.\n\nOutrossim, a influência dos meios de comunicação de massa e das redes digitais muitas vezes secundariza essa temática. Conforme preconiza a Escola de Frankfurt, a indústria cultural pode moldar percepções e alienar o pensamento crítico. Assim, a invisibilidade de ${cleanTopic} nas agendas públicas consolida barreiras cognitivas difíceis de transpor.`
+      ];
+
+      const redacaoConcs = [
+        `Infere-se, portanto, a urgência de medidas intervencionistas capazes de mitigar esse revés. Para tanto, cabe ao Ministério competente, em articulação com as Secretarias de Educação, instituir um Programa Nacional de Conscientização e Ação sobre ${cleanTopic}, por meio de verbas públicas direcionadas e oficinas formativas nas escolas e comunidades. Essa iniciativa deve contar com palestras ministradas por especialistas e campanhas informativas nos veículos midiáticos, com o fito de esclarecer os cidadãos. Somente assim, consolidar-se-á uma sociedade plenamente justa e condizente com os ideais democráticos.`,
+        `Portanto, medidas estratégicas são inadiáveis para transformar esse cenário. Compete ao Governo Federal, em parceria com organizações não governamentais e instituições de ensino, implementar núcleos regionais de suporte e fomento à discussão de ${cleanTopic}, mediante a alocação de recursos específicos e a capacitação continuada de agentes públicos. Tal ação tem como objetivo desconstruir preconceitos e viabilizar intervenções práticas duradouras. Dessa maneira, o país poderá superar os entraves históricos e assegurar a efetiva cidadania de sua população.`
+      ];
+
+      const rIntro = redacaoIntros[Math.floor(Math.random() * redacaoIntros.length)];
+      const rDev = redacaoDevs[Math.floor(Math.random() * redacaoDevs.length)];
+      const rConc = redacaoConcs[Math.floor(Math.random() * redacaoConcs.length)];
+
+      return `${rIntro}\n\n${rDev}\n\n${rConc}`;
+    }
+
+    // GÊNERO 2: ARTIGO CIENTÍFICO E MONOGRAFIA
+    if (documentType.includes("cientifico") || documentType.includes("científico") || documentType.includes("monografia")) {
+      return `RESUMO\nO presente estudo analisa as configurações teóricas e empíricas associadas a ${cleanTopic}. A investigação baseou-se em uma abordagem qualitativa e descritiva, utilizando revisão de literatura e análise documental. Os resultados demonstram a relevância da sistematização de protocolos integrados para aprimoramento dos processos investigados, evidenciando contribuições expressivas para o estado da arte.\nPalavras-chave: ${cleanTopic}. Metodologia Científica. Análise Crítica. Inovação.\n\n1 INTRODUÇÃO\nA emergência e consolidação das investigações sobre ${cleanTopic} configuram um domínio estratégico para o avanço do conhecimento. O objetivo geral deste trabalho é analisar os parâmetros conceituais e operacionais que orientam essa temática, identificando lacunas e potencialidades.\n\n2 METODOLOGIA\nTrata-se de uma pesquisa de caráter exploratório-descritivo, desenvolvida mediante levantamento bibliográfico nas principais bases de indexação acadêmica. A categorização dos dados obedeceu a critérios rigorosos de relevância e atualidade.\n\n3 RESULTADOS E DISCUSSÃO\nOs dados compilados atestam que a implementação coordenada de diretrizes sobre ${cleanTopic} produz impactos positivos mensuráveis. A correlação entre rigor analítico e aplicabilidade prática fundamenta a superação de paradigmas defasados.\n\n4 CONSIDERAÇÕES FINAIS\nConclui-se que o aprofundamento das investigações acerca de ${cleanTopic} permanece imprescindível para a sustentação de práticas qualificadas e inovadoras na contemporaneidade.\n\nREFERÊNCIAS\nASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR 6022: Artigo em publicação periódica técnica e/ou científica — Apresentação. Rio de Janeiro: ABNT, ${currentYear}.\n\nSILVA, M. R.; SANTOS, L. F. Metodologia Científica e Prática Acadêmica. São Paulo: Atlas, ${currentYear - 1}.\n\nOLIVEIRA, C. H. Epistemologia e Inovação na Pesquisa. Curitiba: InterSaberes, ${currentYear - 2}.`;
+    }
+
+    // GÊNERO 3: RESENHA CRÍTICA
+    if (documentType.includes("resenha")) {
+      return `1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO\nA análise crítica sobre ${cleanTopic} insere-se em um debate multifacetado de grande relevância acadêmica e social. O objetivo desta resenha é avaliar sistematicamente os principais argumentos e constructos teóricos articulados em torno do tema.\n\n2 RESUMO ANALÍTICO DA OBRA / TEMA\nO cerne da discussão repousa sobre a necessidade de revisitar conceitos fundamentais, demonstrando que a abordagem tradicional de ${cleanTopic} demanda reformulações metodológicas para responder às exigências contemporâneas.\n\n3 APRECIAÇÃO CRÍTICA E DESDOBRAMENTOS\nDestaca-se como ponto forte a solidez conceitual e a clareza argumentativa. Todavia, observa-se que a aplicabilidade empírica poderia ser expandida por meio de estudos de campo comparativos.\n\n4 CONCLUSÃO E RECOMENDAÇÕES\nRecomenda-se a leitura desta temática a pesquisadores, estudantes e profissionais que buscam aprofundar seu entendimento crítico sobre ${cleanTopic}, configurando-se como obra de consulta obrigatória.`;
+    }
+
+    // PADRÃO ACADÊMICO / ARTIGO GERAL
     const intros = [
       `A emergência e a evolução das discussões acerca de ${cleanTopic} constituem um ponto nodal para as ciências contemporâneas. O presente ${documentType} propõe uma investigação aprofundada sobre as dinâmicas estruturais que atravessam essa temática, delineando seus impactos na prática e na teoria. A relevância deste estudo reside na premência de respostas qualificadas frente às transformações observadas no contexto atual.`,
-      `Investigar ${cleanTopic} requer uma postura analítica rigorosa diante da multiplicidade de fatores sociais, técnicos e conceituais envolvidos. Este trabalho tem como escopo examinar criticamente os pressupostos subjacentes a essa problemática, estabelecendo correlações fundamentadas com o estado da arte na literatura especializada.`,
-      `O debate contemporâneo sobre ${cleanTopic} ganha contornos cada vez mais complexos na medida em que novas variáveis são incorporadas à reflexão científica. Assim, o objetivo deste ${documentType} é estruturar um arcabouço interpretativo sólido, capaz de evidenciar nuances frequentemente negligenciadas nas análises convencionais.`,
-      `No âmbito dos estudos recentes, ${cleanTopic} desponta como uma temática estratégica para o desenvolvimento de modelos mais integrados e eficientes. A partir de um exame sistemático, esta pesquisa delineia caminhos teóricos e empíricos essenciais para a compreensão dos fenômenos associados.`
+      `Investigar ${cleanTopic} requer uma postura analítica rigorosa diante da multiplicidade de fatores sociais, técnicos e conceituais envolvidos. Este trabalho tem como escopo examinar criticamente os pressupostos subjacentes a essa problemática, estabelecendo correlações fundamentadas com o estado da arte na literatura especializada.`
     ];
 
     const developments = [
-      `2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO DOS DADOS\n\nA revisão da literatura demonstra que a abordagem sobre ${cleanTopic} não pode ser dissociada dos fatores contextuais que a condicionam. Conforme sustentam os principais referenciais da área, a eficácia das intervenções depende da coerência entre métodos analíticos e realidade operacional.\n\n2.1 Dimensões Críticas e Perspectivas de Análise\n\nIdentifica-se uma expressiva convergência metodológica no sentido de priorizar mecanismos que integrem precisão técnica e adaptabilidade. A parametrização adequada dos processos assegura robustez contra inconsistências estruturais, mitigando riscos de distorções interpretativas.\n\n2.2 Análise Comparativa e Desdobramentos Práticos\n\nOs resultados evidenciam que a sistematização contínua de ${cleanTopic} produz ganhos mensuráveis na tomada de decisão. O cruzamento das variáveis qualitativas e quantitativas atesta a superioridade de abordagens estruturadas sobre práticas empíricas não normatizadas.`,
-      `2 DESENVOLVIMENTO ANALÍTICO E CONTEXTUAL\n\nAo aprofundar o exame sobre ${cleanTopic}, torna-se imperativo categorizar os pilares que sustentam a consolidação desses princípios. O rigor metodológico atua como elemento balizador, viabilizando diagnósticos precisos e replicáveis.\n\n2.1 Interfaces Conceituais e Aplicabilidade\n\nA articulação entre as teorias clássicas e as inovações recentes viabiliza uma leitura multifacetada de ${cleanTopic}. Constata-se que a aplicação de protocolos padronizados potencializa a eficiência dos procedimentos, promovendo uma base consistente para intervenções subsequentes.\n\n2.2 Síntese das Evidências e Proposições\n\nA triangulação dos dados coletados corrobora a tese de que a otimização dos processos está intrinsecamente ligada à capacitação contínua e à revisão periódica das diretrizes normativas vigentes.`
+      `2 FUNDAMENTAÇÃO TEÓRICA E DISCUSSÃO DOS DADOS\n\nA revisão da literatura demonstra que a abordagem sobre ${cleanTopic} não pode ser dissociada dos fatores contextuais que a condicionam. Conforme sustentam os principais referenciais da área, a eficácia das intervenções depende da coerência entre métodos analíticos e realidade operacional.\n\n2.1 Dimensões Críticas e Perspectivas de Análise\n\nIdentifica-se uma expressiva convergência metodológica no sentido de priorizar mecanismos que integrem precisão técnica e adaptabilidade. A parametrização adequada dos processos assegura robustez contra inconsistências estruturais, mitigando riscos de distorções interpretativas.\n\n2.2 Análise Comparativa e Desdobramentos Práticos\n\nOs resultados evidenciam que a sistematização contínua de ${cleanTopic} produz ganhos mensuráveis na tomada de decisão. O cruzamento das variáveis qualitativas e quantitativas atesta a superioridade de abordagens estruturadas sobre práticas empíricas não normatizadas.`
     ];
 
     const conclusions = [
-      `3 CONSIDERAÇÕES FINAIS\n\nEm conformidade com os objetivos delimitados, este ${documentType} demonstrou que ${cleanTopic} representa um campo fértil e indispensável para a produção científica. As evidências apresentadas reforçam a necessidade premente de aprimoramento contínuo e abrem precedentes para investigações futuras mais abrangentes.`,
-      `3 CONSIDERAÇÕES FINAIS\n\nOs resultados sintetizados nesta pesquisa confirmam a centralidade de ${cleanTopic} no panorama atual. Demonstrou-se que a adoção de critérios fundamentados assegura avanços epistemológicos e práticos expressivos, recomendando-se a continuidade dos estudos empíricos para validação contínua dos modelos discutidos.`
+      `3 CONSIDERAÇÕES FINAIS\n\nEm conformidade com os objetivos delimitados, este ${documentType} demonstrou que ${cleanTopic} representa um campo fértil e indispensável para a produção científica. As evidências apresentadas reforçam a necessidade premente de aprimoramento contínuo e abrem precedentes para investigações futuras mais abrangentes.`
     ];
 
     const referencesList = [
-      `REFERÊNCIAS\n\nASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR 14724: Informação e documentação — Trabalhos acadêmicos — Apresentação. Rio de Janeiro: ABNT, ${currentYear}.\n\nALMEIDA, R. P.; CARDOSO, M. L. Inovações Metodológicas e Rigor Científico. São Paulo: Editora Acadêmica Nacional, ${currentYear - 1}.\n\nFERREIRA, J. T. Epistemologia e Práticas Contemporâneas. Curitiba: InterSaberes, ${currentYear - 2}.`,
-      `REFERÊNCIAS\n\nASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR 14724: Informação e documentação — Trabalhos acadêmicos — Apresentação. Rio de Janeiro: ABNT, ${currentYear}.\n\nMENDES, G. V.; SOUZA, A. C. Metodologia Científica Aplicada. Rio de Janeiro: Vozes Acadêmicas, ${currentYear - 1}.\n\nROCHA, E. K. Fundamentos da Pesquisa Avançada. Belo Horizonte: Edições Universitárias, ${currentYear - 2}.`
+      `REFERÊNCIAS\n\nASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR 14724: Informação e documentação — Trabalhos acadêmicos — Apresentação. Rio de Janeiro: ABNT, ${currentYear}.\n\nALMEIDA, R. P.; CARDOSO, M. L. Inovações Metodológicas e Rigor Científico. São Paulo: Editora Acadêmica Nacional, ${currentYear - 1}.\n\nFERREIRA, J. T. Epistemologia e Práticas Contemporâneas. Curitiba: InterSaberes, ${currentYear - 2}.`
     ];
 
     const rndIntro = intros[Math.floor(Math.random() * intros.length)];
@@ -239,23 +268,76 @@ async function startServer() {
         }
       }
 
+      const typeGuidelines: Record<string, string> = {
+        "artigo_cientifico": `ESTRUTURA OBRIGATÓRIA DE ARTIGO CIENTÍFICO (ABNT NBR 6022):
+- RESUMO estruturado com PALAVRAS-CHAVE em português.
+- 1 INTRODUÇÃO (contextualização do problema, objetivos claros e justificativa).
+- 2 METODOLOGIA (tipo de pesquisa, procedimentos e coleta de dados).
+- 3 RESULTADOS E DISCUSSÃO (análise detalhada e confronto com a literatura).
+- 4 CONSIDERAÇÕES FINAIS (conclusão das hipóteses e contribuições).
+- REFERÊNCIAS bibliográficas completas no padrão ABNT.`,
+
+        "redacao": `ESTRUTURA OBRIGATÓRIA DE REDAÇÃO DISSERTATIVO-ARGUMENTATIVA (PADRÃO ENEM / VESTIBULAR):
+- NÃO coloque Capa, Folha de Rosto ou seções numeradas. Entregue o texto corrido em prosa (4 a 5 parágrafos).
+- 1º Parágrafo (Introdução): Apresentação do tema com repertório sociocultural legitimado e tese clara em duas frentes argumentativas.
+- 2º e 3º Parágrafos (Desenvolvimento D1 e D2): Argumentação profunda com dados, alusões históricas/filosóficas e causas/consequências.
+- 4º Parágrafo (Conclusão): Proposta de Intervenção completa com os 5 elementos obrigatórios (Agente, Ação, Meio/Modo, Efeito e Detalhamento).`,
+
+        "resenha": `ESTRUTURA OBRIGATÓRIA DE RESENHA CRÍTICA:
+- 1 IDENTIFICAÇÃO E CONTEXTUALIZAÇÃO DA OBRA / TEMA.
+- 2 RESUMO ANALÍTICO DAS PRINCIPAIS IDEIAS.
+- 3 APRECIAÇÃO CRÍTICA (pontos fortes, limitações e contribuição para a área).
+- 4 CONCLUSÃO E RECOMENDAÇÃO DE LEITURA.`,
+
+        "resumo": `ESTRUTURA OBRIGATÓRIA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
+- Texto em parágrafo único ou blocos concisos, ressaltando objetivo, método, resultados e conclusões.
+- PALAVRAS-CHAVE ao final.`,
+
+        "estudo_caso": `ESTRUTURA OBRIGATÓRIA DE ESTUDO DE CASO:
+- 1 APRESENTAÇÃO DO CASO E CONTEXTO.
+- 2 DIAGNÓSTICO E IDENTIFICAÇÃO DOS PROBLEMAS CENTRAIS.
+- 3 ANÁLISE FUNDAMENTADA NAS TEORIAS DA ÁREA.
+- 4 PLANO DE AÇÃO E RECOMENDAÇÕES PRÁTICAS.`,
+
+        "relatorio": `ESTRUTURA OBRIGATÓRIA DE RELATÓRIO TÉCNICO:
+- 1 INTRODUÇÃO E ESCOPO DO RELATÓRIO.
+- 2 PROCEDIMENTOS E ATIVIDADES REALIZADAS.
+- 3 RESULTADOS OBTIDOS E ANÁLISE DE DESEMPENHO.
+- 4 RECOMENDAÇÕES E CONSIDERAÇÕES TÉCNICAS.`,
+
+        "monografia": `ESTRUTURA OBRIGATÓRIA DE MONOGRAFIA / TCC (ABNT NBR 14724):
+- RESUMO com Palavras-chave.
+- 1 INTRODUÇÃO (problematização, objetivos e justificativa).
+- 2 REVISÃO BIBLIOGRÁFICA / FUNDAMENTAÇÃO TEÓRICA.
+- 3 PROCEDIMENTOS METODOLÓGICOS.
+- 4 APRESENTAÇÃO E ANÁLISE DOS DADOS.
+- 5 CONSIDERAÇÕES FINAIS.
+- REFERÊNCIAS.`
+      };
+
+      const specificGuideline = typeGuidelines[documentType] || `ESTRUTURA PADRÃO ACADÊMICA ABNT:
+- 1 INTRODUÇÃO
+- 2 DESENVOLVIMENTO (Fundamentação e Discussão)
+- 3 CONSIDERAÇÕES FINAIS
+- REFERÊNCIAS`;
+
       const typeMap: Record<string, string> = {
         "artigo": "artigo acadêmico",
-        "resumo": "resumo/fichamento",
+        "resumo": "resumo/fichamento acadêmico",
         "trabalho_academico": "trabalho acadêmico completo (TCC)",
-        "monografia": "monografia",
+        "monografia": "monografia acadêmica",
         "projeto": "projeto de pesquisa",
         "artigo_opiniao": "artigo de opinião",
         "resenha": "resenha crítica",
         "estudo_caso": "estudo de caso",
-        "relatorio": "relatório técnico",
+        "relatorio": "relatório técnico-científico",
         "artigo_cientifico": "artigo científico",
-        "redacao": "redação"
+        "redacao": "redação dissertativo-argumentativa"
       };
       const selectedType = typeMap[documentType] || documentType || "artigo acadêmico";
       const subtitleText = subtitle ? ` - Subtítulo: ${subtitle}` : "";
 
-      const hasWorkData = studentName || course || institution || city || year || advisor;
+      const hasWorkData = (studentName || course || institution || city || year || advisor) && documentType !== "redacao";
       let coverDataLines = "";
       if (institution) coverDataLines += `\n      - Instituição: ${institution}`;
       if (course) coverDataLines += `\n      - Curso: ${course}`;
@@ -277,17 +359,18 @@ async function startServer() {
       Dados fornecidos:${coverDataLines}
       ` : "";
 
-      const instruction = `Crie um(a) ${selectedType} detalhado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
+      const instruction = `Crie um(a) ${selectedType} detalhado(a) e aprofundado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
       
-      DIRETRIZES OBRIGATÓRIAS (HUMANIZAÇÃO E ABNT):
-      1. ALTA BURSTINESS E PERPLEXIDADE: Intercale frases curtas e diretas com períodos mais longos e complexos. Use um vocabulário rico, orgânico e menos previsível para quebrar os padrões matemáticos de detecção de IA.
+      ${specificGuideline}
+
+      DIRETRIZES OBRIGATÓRIAS (HUMANIZAÇÃO E FORMATAÇÃO):
+      1. ALTA BURSTINESS E PERPLEXIDADE: Intercale frases curtas e diretas com períodos mais longos e complexos. Use vocabulário rico, orgânico e preciso do gênero escolhido.
       2. ZERO CLICHÊS DE IA: É ESTRITAMENTE PROIBIDO usar transições artificiais como "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Desde os primórdios", "Além disso". Faça conexões lógicas e diretas.
-      3. RITMO HUMANO: O texto DEVE ser indetectável por ferramentas como GPTZero ou Turnitin. Simule o ritmo cognitivo humano, com argumentação progressiva, fluxo natural e pausas retóricas.
-      4. ORIGINALIDADE: Todo o conteúdo deve ser 100% autoral, garantindo zero plágio em verificadores.
-         6. Caso haja necessidade, gere também tabelas e imagens apropriadas para enriquecer o conteúdo.
+      3. RITMO HUMANO: Simule o fluxo cognitivo humano, com argumentação progressiva, dados pertinentes e referências sólidas.
+      4. ORIGINALIDADE: Conteúdo 100% autoral e inédito.
 
       ${coverInstruction}
-      Instruções adicionais detalhadas: ${prompt || "Siga a estrutura padrão acadêmica apropriada (ex: Introdução, Desenvolvimento, Conclusão, Referências)."}
+      Instruções adicionais detalhadas: ${prompt || `Siga rigorosamente a estrutura oficial de ${selectedType}.`}
       
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
