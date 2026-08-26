@@ -5,8 +5,10 @@ import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
+import dotenv from "dotenv";
 
-const defaultAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+dotenv.config();
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 async function startServer() {
@@ -17,13 +19,18 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Helper to dynamically get Google GenAI client (User quota or System quota)
-  function getClientAi(req?: express.Request) {
-    if (!req) return defaultAi;
-    const userApiKey = (req.headers["x-gemini-api-key"] as string) || (req.headers["x-google-api-key"] as string) || (req.headers["authorization"] ? req.headers["authorization"].replace(/^Bearer\s+/i, '') : undefined);
-    if (userApiKey && userApiKey.trim()) {
-      return new GoogleGenAI({ apiKey: userApiKey.trim() });
+  function getClientAi(req?: express.Request): { client: GoogleGenAI | null; apiKey: string | null } {
+    const userApiKey = (req?.headers["x-gemini-api-key"] as string) || 
+                       (req?.headers["x-google-api-key"] as string) || 
+                       (req?.headers["authorization"] ? req.headers["authorization"].replace(/^Bearer\s+/i, '') : undefined) ||
+                       process.env.GEMINI_API_KEY ||
+                       process.env.GOOGLE_API_KEY ||
+                       process.env.VITE_GEMINI_API_KEY;
+
+    if (userApiKey && userApiKey.trim() && userApiKey !== "undefined" && userApiKey !== "null") {
+      return { client: new GoogleGenAI({ apiKey: userApiKey.trim() }), apiKey: userApiKey.trim() };
     }
-    return defaultAi;
+    return { client: null, apiKey: null };
   }
 
   // Helper to call Gemini with automatic fallback / retries
@@ -33,13 +40,17 @@ async function startServer() {
     const chatConstraint = "\n\nIMPORTANTE: Responda diretamente e de forma clara, utilizando formatação em Markdown (como negrito, listas e blocos de código) para facilitar a leitura. Seja prestativo e ajude a esclarecer dúvidas ou refinar o texto.";
     
     const finalPrompt = prompt + personaDirective + (isDocument ? strictConstraint : chatConstraint);
-    const client = getClientAi(req);
+    const { client, apiKey } = getClientAi(req);
+
+    if (!client || !apiKey) {
+      throw new Error("Chave do Gemini API não configurada. Por favor, adicione sua chave gratuita do Google AI Studio (https://aistudio.google.com) no ícone de Configurações do app ou configure o arquivo .env.");
+    }
 
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
         const response = await client.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-2.5-flash",
           contents: finalPrompt,
         });
         return response.text;
@@ -53,7 +64,7 @@ async function startServer() {
         if (isRateLimit || isOverloaded) {
           attempt++;
           if (attempt >= maxRetries) {
-            throw new Error("Aguarde e tente novamente, erro no sistema.");
+            throw new Error("Aguarde e tente novamente, erro no sistema de IA.");
           }
           const delay = isOverloaded ? 5000 * attempt : 10000 * attempt;
           console.warn(`[API Gemini] Erro temporário (${isOverloaded ? '503 Overloaded' : '429 Rate Limit'}). Tentativa ${attempt} falhou. Aguardando ${delay/1000}s...`);
@@ -141,7 +152,7 @@ async function startServer() {
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
       // PASSO 1: Geração Bruta
-      let generatedText = await generateFromText(instruction);
+      let generatedText = await generateFromText(instruction, req);
 
       // PASSO 2a: Filtro Determinístico de Varredura (Remoção de rastros e clichês)
       let deterministicFiltered = generatedText
@@ -172,7 +183,7 @@ Diretrizes Estritas de Pós-Processamento:
 Texto bruto para sanitização estocástica:
 \n${deterministicFiltered}`;
       
-      generatedText = await generateFromText(humanizeInstruction);
+      generatedText = await generateFromText(humanizeInstruction, req);
       
       // Varredura final de segurança
       generatedText = generatedText
@@ -232,7 +243,7 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
 
       ${rulesContext}
       Retorne APENAS o texto formatado e estruturado, sem comentários adicionais.\n\n${text}`;
-      const formattedText = await generateFromText(instruction);
+      const formattedText = await generateFromText(instruction, req);
       res.json({ success: true, text: formattedText });
     } catch (error) {
       console.error(error);
@@ -263,7 +274,7 @@ DIRETRIZES ABNT OBRIGATÓRIAS:
       
       // Fallback para IA se não for DOI ou falhar
       const instruction = `Gere a referência bibliográfica no formato ${style} para a seguinte fonte (livro, site, artigo ou link):\n${source}\nRetorne APENAS a referência formatada, de forma limpa, sem asteriscos ou formatações Markdown.`;
-      const formattedReference = await generateFromText(instruction);
+      const formattedReference = await generateFromText(instruction, req);
       res.json({ success: true, text: formattedReference });
       
     } catch (error) {
@@ -290,7 +301,7 @@ DIRETRIZES DE HUMANIZAÇÃO:
 
 Texto para humanizar:\n${text}`;
 
-      let humanizedText = await generateFromText(instruction, 5, true);
+      let humanizedText = await generateFromText(instruction, req, 5, true);
       
       // Limpeza estocástica e determinística de vestígios
       humanizedText = (humanizedText || "")
@@ -318,7 +329,7 @@ Texto para humanizar:\n${text}`;
       const { text } = req.body;
       const instruction = `Analise o texto para detectar a presença de plágio e verifique se foi gerado ou não por inteligência artificial.\n\nTexto:\n${text}`;
       
-      const report = await generateFromText(instruction);
+      const report = await generateFromText(instruction, req);
       res.json({ success: true, report });
     } catch (error) {
       console.error(error);
@@ -348,7 +359,7 @@ Texto para humanizar:\n${text}`;
       prompt += `\n\n[HISTÓRICO DA CONVERSA]\n${history.map((h:any) => `${h.role === 'user' ? 'Aluno' : 'Assistente'}: ${h.text}`).join('\n')}\n[/HISTÓRICO]`;
       prompt += `\n\nAluno: ${message}\nAssistente:`;
 
-      const responseText = await generateFromText(prompt, 5, false);
+      const responseText = await generateFromText(prompt, req, 5, false);
       res.json({ success: true, text: responseText });
     } catch (error) {
       console.error(error);
@@ -399,7 +410,7 @@ Texto para humanizar:\n${text}`;
       
       Texto Original:\n${text}`;
       
-      const paginatedText = await generateFromText(instruction);
+      const paginatedText = await generateFromText(instruction, req);
       res.json({ success: true, text: paginatedText });
     } catch (error) {
       console.error(error);
@@ -425,7 +436,7 @@ Aplique as seguintes técnicas rigorosamente:
 
 Texto original:\n${text}`;
       
-      const improvedText = await generateFromText(instruction);
+      const improvedText = await generateFromText(instruction, req);
       res.json({ success: true, text: improvedText });
     } catch (error) {
       console.error(error);
@@ -438,7 +449,7 @@ Texto original:\n${text}`;
       const { csvData } = req.body;
       const instruction = `Transforme os dados a seguir (formato CSV/Texto) em uma Tabela Markdown bem formatada, adequada para um trabalho acadêmico (normas ABNT). Adicione um título genérico de tabela acima se necessário.\n\nDados:\n${csvData}`;
       
-      const tableText = await generateFromText(instruction);
+      const tableText = await generateFromText(instruction, req);
       res.json({ success: true, text: tableText });
     } catch (error) {
       console.error(error);
