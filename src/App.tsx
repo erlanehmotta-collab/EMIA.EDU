@@ -296,11 +296,10 @@ export default function App() {
                   logAction(`Login Mestre Administrativo realizado (${email})`);
                 } else {
                   setIsMaster(false);
-                  const savedCreds = localStorage.getItem("emia_credits");
-                  const userCredits = savedCreds ? parseInt(savedCreds, 10) : 0;
-                  setCredits(userCredits);
-                  if (userCredits <= 0) {
-                    setShowPixModal(true);
+                  const savedGeminiKey = localStorage.getItem("emia_custom_gemini_key");
+                  if (!savedGeminiKey || savedGeminiKey.trim().length < 10) {
+                    // Usuário ainda não tem a chave configurada: abre o modal simples do Google AI Studio na hora
+                    setShowApiKeyModal(true);
                   }
                   logAction(`Login de Aluno via Google realizado (${email})`);
                 }
@@ -433,109 +432,72 @@ export default function App() {
               </button>
 
               <div className="text-center mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md shadow-emerald-500/20">
-                  <Sparkles className="w-6 h-6" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/25">
+                  <Sparkles className="w-7 h-7" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Conectar sua Chave de API de IA</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Os créditos serão consumidos <strong>diretamente da sua conta</strong>, com acesso 100% ilimitado.
+                <h3 className="text-xl font-extrabold text-gray-900">Ativar IA Google Gemini Ilimitada</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Configure apenas uma vez. O app salvará automaticamente e você nunca mais precisará fazer isso.
                 </p>
               </div>
 
-              {/* ABAS DE PROVEDOR */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setAiProvider("gemini")}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    aiProvider === "gemini" 
-                      ? "bg-blue-50 border-blue-600 text-blue-700 shadow-xs" 
-                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                  }`}
+              {/* BOTÃO DIRETO PARA O GOOGLE AI STUDIO */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 border-2 border-blue-200 rounded-2xl p-4 sm:p-5 mb-5 text-center">
+                <p className="text-xs text-blue-950 font-bold mb-3">
+                  Passo 1: Gere sua chave oficial em 1 clique (100% Gratuito)
+                </p>
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs sm:text-sm shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all"
                 >
-                  <span>🌟</span> Google Gemini (Grátis)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAiProvider("openai")}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    aiProvider === "openai" 
-                      ? "bg-emerald-50 border-emerald-600 text-emerald-700 shadow-xs" 
-                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  <span>🤖</span> OpenAI / ChatGPT
-                </button>
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+                  </svg>
+                  <span>👉 Clique aqui para criar sua chave grátis do Google AI Studio</span>
+                </a>
+                <p className="text-[11px] text-blue-800/80 mt-2">
+                  No site do Google, clique no botão azul <strong>"Create API key"</strong> e copie a chave.
+                </p>
               </div>
 
-              {/* TUTORIAL PASSO A PASSO ULTRA SIMPLES */}
-              {aiProvider === "gemini" ? (
-                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 mb-4 text-xs text-blue-950 space-y-2">
-                  <div className="font-bold flex items-center gap-1.5 text-blue-900">
-                    <span>📋</span> Passo a Passo para pegar sua chave Gemini (100% Grátis):
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-blue-900/90 leading-relaxed">
-                    <li>Acesse o site oficial: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700">aistudio.google.com/apikey</a></li>
-                    <li>Faça login com sua conta do Google (Gmail).</li>
-                    <li>Clique no botão azul <strong>"Create API key"</strong> (Criar chave).</li>
-                    <li>Copie a chave gerada (começa com <code className="bg-blue-100 px-1 py-0.5 rounded font-mono">AIzaSy...</code>) e cole no campo abaixo.</li>
-                  </ol>
-                </div>
-              ) : (
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 mb-4 text-xs text-emerald-950 space-y-2">
-                  <div className="font-bold flex items-center gap-1.5 text-emerald-900">
-                    <span>📋</span> Passo a Passo para pegar sua chave OpenAI / ChatGPT:
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-emerald-900/90 leading-relaxed">
-                    <li>Acesse o site: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-700">platform.openai.com/api-keys</a></li>
-                    <li>Faça login na sua conta OpenAI.</li>
-                    <li>Clique em <strong>"Create new secret key"</strong>.</li>
-                    <li>Copie a chave gerada (começa com <code className="bg-emerald-100 px-1 py-0.5 rounded font-mono">sk-...</code>) e cole no campo abaixo.</li>
-                  </ol>
-                </div>
-              )}
-
-              {/* INPUT DA CHAVE */}
+              {/* INPUT PARA COLAR A CHAVE */}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Cole sua Chave de API {aiProvider === "gemini" ? "Google Gemini" : "OpenAI"}:
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Passo 2: Cole sua chave do Google Gemini abaixo:
                   </label>
                   <input
                     type="password"
-                    value={aiProvider === "gemini" ? customGeminiKey : customOpenaiKey}
+                    value={customGeminiKey}
                     onChange={(e) => {
-                      if (aiProvider === "gemini") {
-                        setCustomGeminiKey(e.target.value);
-                        localStorage.setItem("emia_custom_gemini_key", e.target.value.trim());
-                      } else {
-                        setCustomOpenaiKey(e.target.value);
-                        localStorage.setItem("emia_custom_openai_key", e.target.value.trim());
-                      }
+                      setCustomGeminiKey(e.target.value);
+                      localStorage.setItem("emia_custom_gemini_key", e.target.value.trim());
                     }}
-                    placeholder={aiProvider === "gemini" ? "AIzaSy..." : "sk-..."}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all"
+                    placeholder="Cole aqui: AIzaSy..."
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-300 focus:border-blue-500 rounded-xl text-xs sm:text-sm font-mono focus:ring-2 focus:ring-blue-500/20 focus:bg-white outline-none transition-all"
                   />
                 </div>
 
                 <Button
+                  type="button"
                   onClick={() => {
-                    const currentKey = aiProvider === "gemini" ? customGeminiKey : customOpenaiKey;
-                    if (!currentKey || currentKey.trim().length < 10) {
-                      setErrorMessage("Por favor, cole uma chave de API válida.");
-                      setTimeout(() => setErrorMessage(""), 3000);
+                    if (!customGeminiKey || customGeminiKey.trim().length < 10) {
+                      setErrorMessage("Cole uma chave válida do Google AI Studio (iniciando com AIzaSy...)");
                       return;
                     }
+                    localStorage.setItem("emia_custom_gemini_key", customGeminiKey.trim());
+                    localStorage.setItem("emia_ai_provider", "gemini");
                     localStorage.setItem("emia_authenticated", "true");
-                    localStorage.setItem("emia_ai_provider", aiProvider);
                     setIsAuthenticated(true);
                     setShowApiKeyModal(false);
-                    setErrorMessage("✅ Chave conectada com sucesso! Seus créditos próprios estão ativos.");
+                    setErrorMessage("✅ Chave salva com sucesso! Agora seu acesso à IA é automático e permanente.");
                     setTimeout(() => setErrorMessage(""), 4000);
                   }}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3.5 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" /> Salvar Chave e Entrar no App
+                  <CheckCircle className="w-4 h-4 mr-2" /> Salvar Chave e Começar a Usar
                 </Button>
               </div>
             </div>
@@ -627,11 +589,12 @@ export default function App() {
 
   const handleGenerate = async () => {
     const cleanTitle = title.trim() || "Trabalho Acadêmico Geral";
+    const hasActiveKey = !!customGeminiKey && customGeminiKey.trim().length >= 10;
     
-    // VERIFICAÇÃO DE CRÉDITOS: Usuário comum precisa de créditos pagos para gerar
-    if (credits <= 0 && !isMaster) {
-      setShowPixModal(true);
-      setErrorMessage("Você não possui trabalhos disponíveis. Escolha um pacote de créditos PIX para gerar seu texto.");
+    // Se não tiver chave de API do Gemini conectada e não tiver créditos PIX:
+    if (!hasActiveKey && credits <= 0 && !isMaster) {
+      setShowApiKeyModal(true);
+      setErrorMessage("Conecte sua chave gratuita do Google AI Studio para gerar seus trabalhos ilimitados.");
       return;
     }
 

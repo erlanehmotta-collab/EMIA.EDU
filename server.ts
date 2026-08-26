@@ -207,27 +207,44 @@ async function startServer() {
     }
 
     // 3. Se temos cliente Google Gemini configurado com API Key (Multi-Model Resilience Hierarchy)
-    if (geminiClient && geminiKey) {
-      const fallbackModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+    if (geminiKey) {
+      const fallbackModels = [
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-flash-latest"
+      ];
       
       for (const modelName of fallbackModels) {
         let attempt = 0;
         while (attempt < 2) {
           try {
-            const response = await geminiClient.models.generateContent({
-              model: modelName,
-              contents: finalPrompt,
-              config: {
-                temperature: 0.95,
-                topP: 0.95
-              }
+            // Tentativa via REST API direta oficial
+            const restUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
+            const restRes = await fetch(restUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: finalPrompt }] }],
+                generationConfig: {
+                  temperature: 0.9,
+                  topP: 0.95
+                }
+              })
             });
-            if (response.text && response.text.trim()) {
-              return response.text;
+
+            if (restRes.ok) {
+              const resData: any = await restRes.json();
+              const textOut = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textOut && textOut.trim()) {
+                console.log(`[EMIA] Sucesso via Google Gemini (${modelName})!`);
+                return textOut.trim();
+              }
             }
           } catch (error: any) {
             attempt++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
           }
         }
       }
