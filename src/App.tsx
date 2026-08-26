@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip, Header, PageNumber } from "docx";
 import { saveAs } from "file-saver";
 import { useDropzone } from "react-dropzone";
+import { generateAcademicText } from "./lib/academicEngine";
 
 type UserProfile = {
   name: string;
@@ -549,24 +550,44 @@ export default function App() {
         customHeaders["authorization"] = `Bearer ${token}`;
       }
 
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: customHeaders,
-        body: formData,
-      });
-      
-      const textData = await res.text();
-      let data;
-      try { 
-        data = JSON.parse(textData); 
-      } catch (e) { 
-        throw new Error(`Erro no servidor (${res.status}). O texto foi gerado pelo motor de contingência.`); 
+      let finalText = "";
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: customHeaders,
+          body: formData,
+        });
+        
+        const textData = await res.text();
+        const data = JSON.parse(textData);
+        if (data.success && data.text) {
+          finalText = data.text;
+        }
+      } catch (apiErr) {
+        console.warn("[EMIA API Fallback] Usando Motor Acadêmico Autônomo:", apiErr);
       }
 
-      if (data.success && data.text) {
-        setGeneratedText(data.text);
+      // Se a rota da API não respondeu (ex: modo estático/local), executa pelo Motor Acadêmico Resiliente
+      if (!finalText) {
+        finalText = await generateAcademicText({
+          title: cleanTitle,
+          subtitle,
+          documentType: documentType === "outros" ? (customDocumentType || "artigo") : documentType,
+          prompt,
+          studentName,
+          course,
+          institution,
+          city,
+          year,
+          advisor,
+          customGeminiKey,
+        });
+      }
+
+      if (finalText) {
+        setGeneratedText(finalText);
         setActiveTab("editor");
-        logAction(`Geração de documento: ${cleanTitle}`, data.text);
+        logAction(`Geração de documento: ${cleanTitle}`, finalText);
         if (!isMaster) {
           setCredits(prev => {
             const next = Math.max(0, prev - 1);
@@ -575,11 +596,11 @@ export default function App() {
           });
         }
       } else {
-        setErrorMessage(data.error || "Não foi possível gerar o texto. Tente novamente.");
+        setErrorMessage("Não foi possível gerar o texto. Tente novamente.");
       }
     } catch (error) {
       console.error("[EMIA Client Error]", error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro na comunicação com o servidor.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro na geração do documento.");
     } finally {
       setIsLoading(false);
     }
