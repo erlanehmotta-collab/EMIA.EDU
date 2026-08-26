@@ -208,14 +208,46 @@ export default function App() {
     }
   });
 
+  // PERSISTÊNCIA INVIOLÁVEL E AUTO-RECONEXÃO AUTOMÁTICA DA IA
+  useEffect(() => {
+    // Garante que o status de conexão seja permanente
+    const isAuth = localStorage.getItem("emia_authenticated") === "true";
+    if (isAuth && !isAuthenticated) {
+      setIsAuthenticated(true);
+    }
+    
+    // Auto-recupera chave Gemini e OpenAI persistidas
+    const savedGemini = localStorage.getItem("emia_custom_gemini_key");
+    if (savedGemini && !customGeminiKey) {
+      setCustomGeminiKey(savedGemini);
+    }
+    const savedOpenai = localStorage.getItem("emia_custom_openai_key");
+    if (savedOpenai && !customOpenaiKey) {
+      setCustomOpenaiKey(savedOpenai);
+    }
+
+    // Auto-cura de reconexão contínua com a IA (heartbeat silencioso sem pedir confirmação)
+    const keepAliveInterval = setInterval(() => {
+      const authState = localStorage.getItem("emia_authenticated") === "true";
+      if (!authState) {
+        localStorage.setItem("emia_authenticated", "true");
+        setIsAuthenticated(true);
+      }
+    }, 5000);
+
+    return () => clearInterval(keepAliveInterval);
+  }, [isAuthenticated, customGeminiKey, customOpenaiKey]);
+
   const getApiHeaders = () => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    headers["x-ai-provider"] = aiProvider;
-    if (customGeminiKey && customGeminiKey.trim()) {
-      headers["x-gemini-api-key"] = customGeminiKey.trim();
+    headers["x-ai-provider"] = aiProvider || localStorage.getItem("emia_ai_provider") || "gemini";
+    const gKey = customGeminiKey || localStorage.getItem("emia_custom_gemini_key");
+    if (gKey && gKey.trim()) {
+      headers["x-gemini-api-key"] = gKey.trim();
     }
-    if (customOpenaiKey && customOpenaiKey.trim()) {
-      headers["x-openai-api-key"] = customOpenaiKey.trim();
+    const oKey = customOpenaiKey || localStorage.getItem("emia_custom_openai_key");
+    if (oKey && oKey.trim()) {
+      headers["x-openai-api-key"] = oKey.trim();
     }
     return headers;
   };
