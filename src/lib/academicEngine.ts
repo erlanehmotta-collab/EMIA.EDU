@@ -264,7 +264,7 @@ ${studentName ? `Resenhista: ${studentName}
 - 1 INTRODUÇÃO (Problematização, hipótese, objetivos e relevância).
 - 2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA
 - 2.1 Análise das Dimensões Estruturais
-- 3 RESULTADOS E DISCUSSÃO
+- 3 RESULTADOS E DISCUSSÃO (DEVE OBRIGATORIAMENTE CONTER 1 TABELA PADRÃO IBGE/ABNT com laterais abertas e 1 QUADRO/ILUSTRAÇÃO COM FONTE).
 - 4 CONSIDERAÇÕES FINAIS (Conclusão e perspectivas)
 - REFERÊNCIAS (NBR 6023 em ordem alfabética).`;
   }
@@ -276,10 +276,13 @@ ${prompt ? `Diretrizes adicionais do usuário: ${prompt}` : ""}
 ${genreInstructions}
 
 NORMAS OBRIGATÓRIAS:
-1. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
-2. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
-3. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
-4. Formato limpo: Sem saudações ou comentários externos.`;
+1. TABELAS E ELEMENTOS ILUSTRATIVOS (PADRÃO IBGE / ABNT):
+   - Na seção de Resultados e Discussão, inclua OBRIGATORIAMENTE uma Tabela formatada em padrão IBGE (com título no topo "Tabela 1 – Descrição", linhas horizontais no cabeçalho e rodapé, laterais abertas sem linhas verticais, e "Fonte: Os autores (2026)" ou similar no rodapé).
+   - Inclua também uma descrição conceitual ou representação esquemática ilustrativa ("Quadro 1 – Síntese das Variáveis Investigadas" com Fonte abaixo).
+2. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
+3. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
+4. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
+5. Formato limpo: Sem saudações ou comentários externos.`;
 
   try {
     const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
@@ -350,7 +353,29 @@ Conforme ressaltam Silva e Almeida (2023, p. 58), a padronização e o rigor met
 
 3 RESULTADOS E DISCUSSÃO
 
-Os dados compilados evidenciam que a sistematização criteriosa de ${cleanTopic} potencializa a eficiência dos processos decisórios. Os resultados alcançados corroboram a hipótese de que o alinhamento normativo e a profundidade analítica atuam sinergicamente na geração de impacto científico relevante.`;
+Os dados empíricos compilados e analisados evidenciam que a aplicação estruturada de ${cleanTopic} potencializa a eficiência dos processos investigativos. A parametrização das variáveis observadas durante o estudo encontra-se sintetizada a seguir, em conformidade com as Normas de Apresentação Tabular do IBGE e ABNT.
+
+Tabela 1 – Indicadores e Dimensões de Eficiência Relacionados a ${cleanTopic}
+--------------------------------------------------------------------------------
+Dimensão Analisada             Frequência Absoluta (n)   Percentual Relativo (%)
+--------------------------------------------------------------------------------
+Sistematização Metodológica            48                         52,2%
+Consistência e Rigor Teórico           29                         31,5%
+Inovação e Aplicabilidade              15                         16,3%
+--------------------------------------------------------------------------------
+Total Geral                            92                        100,0%
+--------------------------------------------------------------------------------
+Fonte: Dados da pesquisa organizados pelos autores (${currentYear}).
+
+Quadro 1 – Síntese Esquemática das Diretrizes e Impactos Conceituais
++-----------------------------------+-----------------------------------+
+| Diretriz Normativa                | Impacto Observado na Produção     |
++-----------------------------------+-----------------------------------+
+| ABNT NBR 10520:2023 (Citações)    | Uniformidade e fluidez autor-data |
+| ABNT NBR 6023 (Referências)       | Rastreabilidade bibliográfica     |
+| Padrão Tabular IBGE               | Clareza visual e dados abertos    |
++-----------------------------------+-----------------------------------+
+Fonte: Elaborado pelos autores (${currentYear}).`;
 
   const conc = `4 CONSIDERAÇÕES FINAIS
 
