@@ -2118,37 +2118,60 @@ ${latexChapters}
         >
           
           {/* Top Bar with Tabs and Quick Export Actions */}
-          <div className="flex flex-wrap items-center justify-between border-b border-gray-200 mb-3 pb-2 gap-2">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between border-b border-gray-200/80 mb-3 pb-2 gap-2 bg-white/50 backdrop-blur-xs px-1">
+            {/* Abas de Navegação Estilizadas */}
+            <div className="flex items-center bg-gray-100/80 p-1 rounded-xl border border-gray-200/60 shadow-2xs gap-1">
               <button 
                 onClick={() => setActiveTab("editor")}
-                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "editor" || activeTab === "generator" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                  activeTab === "editor" || activeTab === "generator" 
+                    ? "bg-white text-blue-700 shadow-xs font-bold" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                }`}
               >
-                Documento Principal
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                Documento
               </button>
               <button 
                 onClick={() => setActiveTab("chat")}
-                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "chat" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                  activeTab === "chat" 
+                    ? "bg-white text-blue-700 shadow-xs font-bold" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                }`}
               >
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
                 Chat Acadêmico
               </button>
             </div>
 
-            {/* Ações Rápidas de Exportação e Validação no Topo */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <Button 
-                onClick={handleCorrectSpelling} 
-                disabled={isLoading || !generatedText} 
-                variant="outline" 
-                size="sm" 
-                className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8"
-              >
-                {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />}
-                ✍️ Ortografia
-              </Button>
-              <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-700">
-                <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
-              </Button>
+            {/* Grupo Harmônico de Ações Rápidas */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Ferramentas de Texto */}
+              <div className="flex items-center bg-gray-50 border border-gray-200/80 rounded-xl p-1 shadow-2xs gap-1">
+                <Button 
+                  onClick={handleCorrectSpelling} 
+                  disabled={isLoading || !generatedText} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7 px-2.5 font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-lg"
+                >
+                  {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1 text-emerald-600" />}
+                  Ortografia
+                </Button>
+                <Button 
+                  onClick={handleCopy} 
+                  disabled={!generatedText} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7 px-2.5 text-gray-700 hover:bg-gray-200/60 rounded-lg font-medium"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1 text-gray-500" />
+                  Copiar
+                </Button>
+              </div>
+
+              {/* Botão Especial Slides */}
               <Button 
                 onClick={() => {
                   if (!generatedText) {
@@ -2159,35 +2182,60 @@ ${latexChapters}
                 }} 
                 disabled={!generatedText} 
                 size="sm" 
-                className="text-xs h-8 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold shadow-xs flex items-center gap-1"
+                className="text-xs h-8 px-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold shadow-xs rounded-xl flex items-center gap-1.5 active:scale-95 transition-all"
               >
-                <Presentation className="w-3.5 h-3.5 mr-1" />
-                📽️ Slides
-              </Button>
-              <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
-                <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
-              </Button>
-              <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
-                <FileDown className="w-3.5 h-3.5 mr-1" /> Word
-              </Button>
-              <Button onClick={exportLaTeX} disabled={!generatedText} size="sm" className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">
-                <FileCode className="w-3.5 h-3.5 mr-1" /> LaTeX
+                <Presentation className="w-3.5 h-3.5" />
+                Slides
               </Button>
 
-              {/* CONTROLE DE ZOOM INTEGRADO NA BARRA SUPERIOR */}
-              <div className="flex items-center bg-gray-100 border border-gray-300 rounded-lg p-0.5 gap-0.5 select-none flex-shrink-0 shadow-xs h-8 ml-1">
+              {/* Grupo de Exportação */}
+              <div className="flex items-center bg-gray-50 border border-gray-200/80 rounded-xl p-1 shadow-2xs gap-1">
+                <Button 
+                  onClick={exportPDF} 
+                  disabled={!generatedText} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7 px-2.5 text-rose-700 hover:bg-rose-50 hover:text-rose-800 rounded-lg font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                  PDF A4
+                </Button>
+                <Button 
+                  onClick={exportWord} 
+                  disabled={!generatedText} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7 px-2.5 text-blue-700 hover:bg-blue-50 hover:text-blue-800 rounded-lg font-semibold"
+                >
+                  <FileDown className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                  Word
+                </Button>
+                <Button 
+                  onClick={exportLaTeX} 
+                  disabled={!generatedText} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7 px-2.5 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 rounded-lg font-semibold"
+                >
+                  <FileCode className="w-3.5 h-3.5 mr-1 text-emerald-700" />
+                  LaTeX
+                </Button>
+              </div>
+
+              {/* Controle de Zoom Elegante */}
+              <div className="flex items-center bg-gray-100 border border-gray-300/80 rounded-xl p-0.5 gap-0.5 select-none shadow-2xs h-8">
                 <button
                   onClick={() => setZoomScale(z => Math.max(30, z - 10))}
                   title="Diminuir Zoom (-10%)"
-                  className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                  className="p-1.5 hover:bg-white rounded-lg text-gray-700 hover:text-blue-600 transition-all active:scale-95"
                 >
-                  <ZoomOut className="w-3.5 h-3.5" />
+                  <ZoomOut className="w-3.5 h-3.5 stroke-[2.2]" />
                 </button>
                 
                 <button
                   onClick={() => setZoomScale(65)}
                   title="Restaurar Zoom Padrão (65%)"
-                  className="px-1.5 py-0.5 text-xs font-bold text-gray-800 hover:text-blue-600 hover:bg-white rounded min-w-[38px] text-center"
+                  className="px-2 py-0.5 text-xs font-bold text-gray-800 hover:text-blue-600 hover:bg-white rounded-lg min-w-[38px] text-center"
                 >
                   {zoomScale}%
                 </button>
@@ -2195,9 +2243,9 @@ ${latexChapters}
                 <button
                   onClick={() => setZoomScale(z => Math.min(150, z + 10))}
                   title="Aumentar Zoom (+10%)"
-                  className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                  className="p-1.5 hover:bg-white rounded-lg text-gray-700 hover:text-blue-600 transition-all active:scale-95"
                 >
-                  <ZoomIn className="w-3.5 h-3.5" />
+                  <ZoomIn className="w-3.5 h-3.5 stroke-[2.2]" />
                 </button>
               </div>
             </div>
