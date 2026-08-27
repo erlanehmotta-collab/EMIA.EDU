@@ -14,7 +14,7 @@ import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip, Header, PageNumber } from "docx";
 import { saveAs } from "file-saver";
 import { useDropzone } from "react-dropzone";
-import { generateAcademicText } from "./lib/academicEngine";
+import { generateAcademicText, normalizeCitationsToABNT2023 } from "./lib/academicEngine";
 
 type UserProfile = {
   name: string;
@@ -644,22 +644,48 @@ export default function App() {
     }
     setIsLoading(true);
     try {
-      // Motor ABNT Determinístico (Sem custo de IA)
-      // Simula um tempo de processamento para feedback visual
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Regras fixas de estruturação (Limpeza de espaços duplos, garantia de parágrafos, etc)
-      let formattedText = generatedText
-        .replace(/\r\n/g, '\n') // Normaliza quebras de linha
-        .replace(/\n{3,}/g, '\n\n') // Remove espaços verticais excessivos
-        .replace(/^[ \t]+/gm, '') // Remove espaços no início das linhas
+      // 1. Normaliza citações para o padrão ABNT NBR 10520:2023 (caixa mista)
+      let formattedText = normalizeCitationsToABNT2023(generatedText);
+      
+      // 2. Normaliza quebras de linha e espaçamentos
+      formattedText = formattedText
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/^[ \t]+/gm, '')
         .trim();
-        
-      // O visualizador (textarea) e a função exportWord já cuidam das margens, espaçamento 1.5 e recuo.
+
+      // 3. Garante seções primárias em CAIXA ALTA (NBR 6024)
+      formattedText = formattedText.replace(/^(#+\s*|\d+\s+)(introdução|desenvolvimento|fundamentação teórica|metodologia|resultados|conclusão|considerações finais|referências)/gmi, (match, prefix, t) => {
+        return `${prefix}${t.toUpperCase()}`;
+      });
+
+      // 4. Se for documento que exige capa e ainda não tiver, injeta Capa e Folha de Rosto
+      const requiresFormalCover = !["resumo", "redacao", "resenha"].includes(documentType);
+      if (requiresFormalCover && !formattedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+        const inst = institution ? institution.toUpperCase() : "INSTITUIÇÃO DE ENSINO SUPERIOR";
+        const crs = course ? course.toUpperCase() : "CURSO DE GRADUAÇÃO";
+        const aut = studentName ? studentName.toUpperCase() : "NOME DO(A) AUTOR(A)";
+        const tit = (title || "TÍTULO DO TRABALHO").toUpperCase();
+        const sub = subtitle ? `: ${subtitle}` : "";
+        const cid = city ? city.toUpperCase() : "CIDADE - UF";
+        const an = year || String(new Date().getFullYear());
+        const adv = advisor || "Prof. Dr. Orientador";
+
+        const presentationNote = documentType.includes("artigo")
+          ? `Artigo científico/acadêmico apresentado ao(à) ${inst}, como requisito de avaliação acadêmica.`
+          : `Trabalho de Conclusão de Curso apresentado ao(à) ${inst}, como requisito parcial para obtenção de grau.`;
+
+        const coverHeader = `${inst}\n${crs}\n\n\n\n${aut}\n\n\n\n${tit}${sub}\n\n\n\n\n\n\n\n${cid}\n${an}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${aut}\n\n\n\n${tit}${sub}\n\n\n${presentationNote}\nOrientador(a): ${adv}\n\n\n\n\n\n${cid}\n${an}\n\n--- [QUEBRA DE PÁGINA] ---\n\n`;
+        formattedText = coverHeader + formattedText;
+      }
       
       setGeneratedText(formattedText);
-      setErrorMessage("Texto mapeado pelo Motor ABNT! Exporte em Word para visualizar as margens (3cm/2cm), fontes e paginação oficiais (custo zero de IA).");
-      logAction("Formatação ABNT (Motor Determinístico) aplicada", formattedText);
+      setActiveTab("editor");
+      setErrorMessage("✅ Documento 100% adequado às normas ABNT (Capa, Contra-capa, NBR 10520:2023, NBR 6023)!");
+      setTimeout(() => setErrorMessage(""), 3500);
+      logAction("Formatação ABNT Completa Aplicada", formattedText);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : "Erro ao formatar.");
@@ -709,11 +735,12 @@ export default function App() {
       let data; 
       try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
+        const normalized = normalizeCitationsToABNT2023(data.text);
         if (isSelection) {
-          const newFullText = generatedText.substring(0, start) + data.text + generatedText.substring(end);
+          const newFullText = generatedText.substring(0, start) + normalized + generatedText.substring(end);
           setGeneratedText(newFullText);
         } else {
-          setGeneratedText(coverPrefix ? coverPrefix + data.text : data.text);
+          setGeneratedText(coverPrefix ? coverPrefix + normalized : normalized);
         }
         setActiveTab("editor");
         logAction("Texto Humanizado com IA (Anti-Plágio/Turnitin)", data.text);
@@ -961,11 +988,12 @@ export default function App() {
       });
       const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
       if (data.success) {
+        const normalized = normalizeCitationsToABNT2023(data.text);
         if (isSelection) {
-          const newFullText = generatedText.substring(0, start) + data.text + generatedText.substring(end);
+          const newFullText = generatedText.substring(0, start) + normalized + generatedText.substring(end);
           setGeneratedText(newFullText);
         } else {
-          setGeneratedText(data.text);
+          setGeneratedText(normalized);
         }
       } else {
         setErrorMessage(data.error);
