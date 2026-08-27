@@ -94,6 +94,11 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [progress, setProgress] = useState(0);
 
+  // Estados de Edição Visual e Formatação Padrão de Imagens
+  const [imageWidth, setImageWidth] = useState<number>(85); // 85% largura padrão
+  const [imageBorder, setImageBorder] = useState<"none" | "thin" | "medium">("none");
+  const [imageRounded, setImageRounded] = useState<boolean>(false);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isLoading) {
@@ -2843,12 +2848,59 @@ ${latexChapters}
                                     const imgMatch = part.match(/!\[Figura inserida\]\((.*?)\)/);
                                     if (imgMatch) {
                                       return (
-                                        <div key={pPartIdx} className="my-4 flex flex-col items-center justify-center p-2 bg-gray-50 border border-gray-200 rounded-lg">
-                                          <img 
-                                            src={imgMatch[1]} 
-                                            alt="Figura acadêmica" 
-                                            className="max-h-[350px] w-auto object-contain rounded shadow-xs" 
-                                          />
+                                        <div key={pPartIdx} className="my-6 flex flex-col items-center justify-center group relative select-none">
+                                          {/* Barra de Ajuste e Edição da Imagem (Tamanho e Bordas) */}
+                                          <div className="flex items-center gap-3 bg-white/95 backdrop-blur px-3 py-1.5 rounded-full border border-gray-200 shadow-md mb-3 transition-opacity">
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Largura:</span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => setImageWidth(w => Math.max(30, w - 10))}
+                                              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded"
+                                            >
+                                              -
+                                            </button>
+                                            <span className="text-xs font-semibold text-gray-800 tabular-nums">{imageWidth}%</span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => setImageWidth(w => Math.min(100, w + 10))}
+                                              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded"
+                                            >
+                                              +
+                                            </button>
+
+                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
+
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Bordas:</span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => setImageBorder(b => b === "none" ? "thin" : b === "thin" ? "medium" : "none")}
+                                              className={`px-2 py-0.5 text-xs font-semibold rounded ${imageBorder !== "none" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                            >
+                                              {imageBorder === "none" ? "Sem Borda" : imageBorder === "thin" ? "Borda Fina" : "Borda Média"}
+                                            </button>
+
+                                            <button 
+                                              type="button"
+                                              onClick={() => setImageRounded(r => !r)}
+                                              className={`px-2 py-0.5 text-xs font-semibold rounded ${imageRounded ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                            >
+                                              {imageRounded ? "Arredondada" : "Reta"}
+                                            </button>
+                                          </div>
+
+                                          {/* Caixa Ilustrativa da Imagem no Padrão ABNT */}
+                                          <div 
+                                            style={{ width: `${imageWidth}%` }}
+                                            className={`transition-all duration-200 flex flex-col items-center justify-center p-2 bg-white ${
+                                              imageBorder === "thin" ? "border border-gray-400" : imageBorder === "medium" ? "border-2 border-gray-700" : "border-0"
+                                            } ${imageRounded ? "rounded-xl" : "rounded-none"} shadow-xs`}
+                                          >
+                                            <img 
+                                              src={imgMatch[1]} 
+                                              alt="Figura acadêmica" 
+                                              className={`w-full h-auto max-h-[450px] object-contain ${imageRounded ? "rounded-lg" : "rounded-none"}`} 
+                                            />
+                                          </div>
                                         </div>
                                       );
                                     }
