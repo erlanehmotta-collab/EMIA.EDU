@@ -2618,7 +2618,10 @@ ${latexChapters}
             </div>
 
             {(activeTab === "editor" || activeTab === "generator") && (
-              <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
+              <div 
+                onClick={() => setIsImageSelected(false)}
+                className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100"
+              >
                 {(() => {
                   const requiresFormalCover = !["resumo", "redacao", "resenha"].includes(documentType);
                   let pages: string[] = [];
@@ -2891,7 +2894,10 @@ ${latexChapters}
                                       return (
                                         <div 
                                           key={pPartIdx} 
-                                          onClick={() => setIsImageSelected(true)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsImageSelected(true);
+                                          }}
                                           className={`my-6 flex flex-col ${imageAlign === "center" ? "items-center" : imageAlign === "left" ? "items-start" : "items-end"} justify-center relative select-none`}
                                         >
                                           {/* Barra de Ferramentas de Formatação de Imagem (Design Delicado e Elegante) */}
