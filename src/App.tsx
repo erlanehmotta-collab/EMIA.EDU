@@ -143,10 +143,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [generatedText]);
 
-  const logAction = (actionDesc: string, content?: string) => {
+  const logAction = (titleDesc: string, textContent?: string) => {
+    // Registra APENAS textos acadêmicos gerados com conteúdo real
+    if (!textContent || textContent.trim().length < 50) return;
+    
     setAuditLogs(prev => {
-      const newLog = { action: actionDesc, content, timestamp: new Date().toISOString() };
-      const updated = [newLog, ...prev];
+      const newLog = { 
+        action: titleDesc || "Texto Acadêmico Gerado", 
+        content: textContent, 
+        timestamp: new Date().toISOString() 
+      };
+      const updated = [newLog, ...prev.filter(l => Boolean(l.content && l.content.length > 50))];
       
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -2578,28 +2585,44 @@ ${latexChapters}
 
               {profileTab === 'historico' && (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600 mb-6">
-                    Abaixo está o registro de todos os textos gerados, formatados e humanizados durante os últimos 7 dias. Este banco de dados é controlado automaticamente para economizar espaço no seu navegador.
+                  <p className="text-sm text-gray-600 mb-4">
+                    Abaixo estão os textos acadêmicos gerados nos últimos 7 dias. Você pode carregá-los de volta no editor a qualquer momento.
                   </p>
                   
-                  {auditLogs.length === 0 ? (
+                  {auditLogs.filter(l => Boolean(l.content && l.content.trim().length > 50)).length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <Clock className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p>Nenhum registro encontrado ainda.</p>
+                      <p>Nenhum texto gerado no histórico ainda.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {auditLogs.map((log, idx) => (
-                        <div key={idx} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium text-gray-800">{log.action}</span>
-                            <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                              {new Date(log.timestamp).toLocaleString('pt-BR')}
-                            </span>
+                      {auditLogs.filter(l => Boolean(l.content && l.content.trim().length > 50)).map((log, idx) => (
+                        <div key={idx} className="flex flex-col p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-bold text-gray-900">{log.action}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                                {new Date(log.timestamp).toLocaleString('pt-BR')}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (log.content) {
+                                    setGeneratedText(log.content);
+                                    setShowProfileModal(false);
+                                    setActiveTab("editor");
+                                  }
+                                }}
+                                className="text-xs h-7 px-2.5 text-blue-600 border-blue-200 hover:bg-blue-50 font-medium"
+                              >
+                                Abrir no Editor
+                              </Button>
+                            </div>
                           </div>
                           {log.content && (
-                            <div className="mt-2 p-3 bg-white rounded border border-gray-200 text-xs text-gray-600 font-serif max-h-40 overflow-y-auto whitespace-pre-wrap">
-                              {log.content}
+                            <div className="mt-1 p-3 bg-white rounded-lg border border-gray-200 text-xs text-gray-700 font-serif max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                              {log.content.substring(0, 400)}...
                             </div>
                           )}
                         </div>
