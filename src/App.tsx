@@ -731,7 +731,7 @@ export default function App() {
         console.warn("Backend extract endpoint falhou, usando extrator client-side:", serverErr);
       }
 
-      // 2. Extração client-side robusta
+      // 2. Extração client-side robusta (incluindo decodificador binário de stream de PDF)
       if (!extractedText) {
         const textParts: string[] = [];
         for (const file of files) {
@@ -739,6 +739,31 @@ export default function App() {
             if (file.type.includes("text") || file.name.endsWith(".txt") || file.name.endsWith(".md") || file.name.endsWith(".csv")) {
               const content = await file.text();
               textParts.push(content);
+            } else if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
+              // Extrator direto de fluxos de texto de PDF no navegador
+              const arrayBuffer = await file.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              const latinText = new TextDecoder("latin1").decode(bytes);
+              
+              // Extrai blocos de texto PDF entre parênteses em instruções Tj/TJ ou blocos de texto puro
+              const pdfMatches = latinText.match(/\(([^()]{2,})\)\s*(?:Tj|'|")/g) || [];
+              let extractedPdfString = "";
+              if (pdfMatches.length > 0) {
+                extractedPdfString = pdfMatches
+                  .map(m => m.replace(/^\(/, '').replace(/\)\s*(?:Tj|'|")$/, ''))
+                  .join(' ')
+                  .replace(/\\([()\\])/g, '$1')
+                  .replace(/\s+/g, ' ');
+              } else {
+                // Fallback de strings legíveis para PDFs protegidos ou estruturados
+                const cleanChars = latinText.replace(/[^\x20-\x7E\xA0-\xFF\n\r]/g, ' ');
+                const chunks = cleanChars.split(/\s{3,}/).filter(c => c.trim().length > 15);
+                extractedPdfString = chunks.join('\n\n');
+              }
+
+              if (extractedPdfString.trim()) {
+                textParts.push(`--- Conteúdo do PDF: ${file.name} ---\n\n${extractedPdfString.trim()}`);
+              }
             }
           } catch (readErr) {
             console.warn(`Erro ao ler arquivo ${file.name}:`, readErr);
