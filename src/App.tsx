@@ -5,7 +5,7 @@ import {
   Settings, Loader2, LogOut, ShieldCheck, Download, Copy,
   UserCheck, BookOpen, Hash, Wand2, ImagePlus, Lock,
   User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check,
-  ZoomIn, ZoomOut, Presentation, PanelLeftClose, PanelLeftOpen, Share2, FileCode
+  ZoomIn, ZoomOut, Presentation, PanelLeftClose, PanelLeftOpen, Share2, FileCode, Move
 } from "lucide-react";
 import pptxgen from "pptxgenjs";
 import ReactMarkdown from "react-markdown";
@@ -94,10 +94,13 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [progress, setProgress] = useState(0);
 
-  // Estados de Edição Visual e Formatação Padrão de Imagens
-  const [imageWidth, setImageWidth] = useState<number>(85); // 85% largura padrão
-  const [imageBorder, setImageBorder] = useState<"none" | "thin" | "medium">("none");
-  const [imageRounded, setImageRounded] = useState<boolean>(false);
+  // Estados de Edição Visual e Formatação Padrão de Imagens (Word Style Drag & Drop)
+  const [imageWidth, setImageWidth] = useState<number>(80); // % da largura útil
+  const [imageHeight, setImageHeight] = useState<number>(320); // altura em pixels (auto/custom)
+  const [imageAlign, setImageAlign] = useState<"center" | "left" | "right">("center");
+  const [imageOffset, setImageOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [imageStyle, setImageStyle] = useState<"none" | "simple_border" | "soft_shadow" | "rounded_frame" | "academic_box">("academic_box");
+  const [showImageToolbar, setShowImageToolbar] = useState<boolean>(true);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -2848,29 +2851,199 @@ ${latexChapters}
                                     const imgMatch = part.match(/!\[Figura inserida\]\((.*?)\)/);
                                     if (imgMatch) {
                                       return (
-                                        <div key={pPartIdx} className="my-6 flex flex-col items-center justify-center relative select-none">
-                                          {/* Container no Estilo Word com Alças de Arraste (Resize Handles) */}
+                                        <div key={pPartIdx} className={`my-6 flex flex-col ${imageAlign === "center" ? "items-center" : imageAlign === "left" ? "items-start" : "items-end"} justify-center relative select-none group`}>
+                                          {/* Barra de Ferramentas de Formatação de Imagem (Estilo Ribbon do Microsoft Word) */}
+                                          <div className="flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur px-3.5 py-1.5 rounded-lg border border-gray-200 shadow-md mb-2 opacity-90 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Alinhamento:</span>
+                                            <div className="flex items-center bg-gray-100 rounded p-0.5">
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageAlign("left")}
+                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "left" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
+                                                title="Alinhar à Esquerda"
+                                              >
+                                                Esquerda
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageAlign("center")}
+                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "center" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
+                                                title="Centralizar (Padrão ABNT)"
+                                              >
+                                                Centro
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageAlign("right")}
+                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "right" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
+                                                title="Alinhar à Direita"
+                                              >
+                                                Direita
+                                              </button>
+                                            </div>
+
+                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
+
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Estilos de Imagem:</span>
+                                            <div className="flex items-center gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageStyle("academic_box")}
+                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "academic_box" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                              >
+                                                ABNT Padrão
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageStyle("simple_border")}
+                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "simple_border" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                              >
+                                                Borda Simples
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageStyle("soft_shadow")}
+                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "soft_shadow" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                              >
+                                                Sombra Suave
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageStyle("rounded_frame")}
+                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "rounded_frame" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                                              >
+                                                Cantos Arredondados
+                                              </button>
+                                            </div>
+
+                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setImageWidth(80);
+                                                setImageHeight(320);
+                                                setImageAlign("center");
+                                                setImageStyle("academic_box");
+                                              }}
+                                              className="px-2 py-0.5 text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded"
+                                              title="Redefinir Imagem"
+                                            >
+                                              Redefinir
+                                            </button>
+                                          </div>
+
+                                          {/* Container da Imagem com Reposicionamento Livre (Drag to Move) e 8 Alças Word */}
                                           <div 
-                                            style={{ width: `${imageWidth}%` }}
-                                            className="relative group p-1.5 border border-transparent hover:border-blue-400 hover:border-dashed rounded transition-all flex flex-col items-center"
+                                            style={{ 
+                                              width: `${imageWidth}%`,
+                                              transform: `translate(${imageOffset.x}px, ${imageOffset.y}px)`
+                                            }}
+                                            className="relative group/box p-1 border border-transparent hover:border-blue-500 hover:border-dashed rounded transition-all flex flex-col items-center select-none"
                                           >
-                                            <img 
-                                              src={imgMatch[1]} 
-                                              alt="Figura acadêmica" 
-                                              className="w-full h-auto object-contain rounded shadow-xs cursor-pointer select-none" 
-                                              draggable={false}
+                                            {/* Alça Central Superior para Arrastar e Reposicionar a Imagem Livremente */}
+                                            <div
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startY = e.clientY;
+                                                const initialOffset = { ...imageOffset };
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dX = ev.clientX - startX;
+                                                  const dY = ev.clientY - startY;
+                                                  setImageOffset({
+                                                    x: initialOffset.x + dX,
+                                                    y: initialOffset.y + dY
+                                                  });
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Clique e arraste para reposicionar a imagem onde quiser (Padrão Word)"
+                                              className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white p-1 rounded-full shadow-md cursor-grab active:cursor-grabbing opacity-0 group-hover/box:opacity-100 transition-opacity z-10 flex items-center justify-center"
+                                            >
+                                              <Move className="w-3.5 h-3.5" />
+                                            </div>
+
+                                            <div 
+                                              style={{ height: imageHeight > 0 ? `${imageHeight}px` : "auto" }}
+                                              onMouseDown={(e) => {
+                                                if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'IMG') {
+                                                  e.preventDefault();
+                                                  const startX = e.clientX;
+                                                  const startY = e.clientY;
+                                                  const initialOffset = { ...imageOffset };
+                                                  const onMouseMove = (ev: MouseEvent) => {
+                                                    const dX = ev.clientX - startX;
+                                                    const dY = ev.clientY - startY;
+                                                    setImageOffset({
+                                                      x: initialOffset.x + dX,
+                                                      y: initialOffset.y + dY
+                                                    });
+                                                  };
+                                                  const onMouseUp = () => {
+                                                    window.removeEventListener("mousemove", onMouseMove);
+                                                    window.removeEventListener("mouseup", onMouseUp);
+                                                  };
+                                                  window.addEventListener("mousemove", onMouseMove);
+                                                  window.addEventListener("mouseup", onMouseUp);
+                                                }
+                                              }}
+                                              className={`w-full overflow-hidden flex items-center justify-center transition-all cursor-grab active:cursor-grabbing ${
+                                                imageStyle === "academic_box" 
+                                                  ? "p-2 bg-white border border-gray-300 shadow-2xs"
+                                                  : imageStyle === "simple_border"
+                                                  ? "border-2 border-gray-800"
+                                                  : imageStyle === "soft_shadow"
+                                                  ? "shadow-lg bg-white rounded"
+                                                  : imageStyle === "rounded_frame"
+                                                  ? "rounded-2xl border border-gray-200 shadow-md"
+                                                  : ""
+                                              }`}
+                                            >
+                                              <img 
+                                                src={imgMatch[1]} 
+                                                alt="Figura acadêmica" 
+                                                style={{ height: imageHeight > 0 ? `${imageHeight}px` : "auto" }}
+                                                className="w-full object-contain select-none pointer-events-none" 
+                                                draggable={false}
+                                              />
+                                            </div>
+
+                                            {/* 1. Alça Direita (Ajustar Largura) */}
+                                            <div 
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startW = imageWidth;
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dX = ev.clientX - startX;
+                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Arrastar largura"
+                                              className="absolute top-1/2 -right-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
                                             />
 
-                                            {/* Alças de Arraste nos 4 Cantos (Word Resize Handles) */}
+                                            {/* 2. Alça Esquerda (Ajustar Largura) */}
                                             <div 
                                               onMouseDown={(e) => {
                                                 e.preventDefault();
                                                 const startX = e.clientX;
-                                                const startWidth = imageWidth;
-                                                const onMouseMove = (moveEvent: MouseEvent) => {
-                                                  const deltaX = moveEvent.clientX - startX;
-                                                  const newW = Math.min(100, Math.max(25, startWidth + (deltaX / 4)));
-                                                  setImageWidth(Math.round(newW));
+                                                const startW = imageWidth;
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dX = startX - ev.clientX;
+                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
                                                 };
                                                 const onMouseUp = () => {
                                                   window.removeEventListener("mousemove", onMouseMove);
@@ -2879,21 +3052,19 @@ ${latexChapters}
                                                 window.addEventListener("mousemove", onMouseMove);
                                                 window.addEventListener("mouseup", onMouseUp);
                                               }}
-                                              title="Puxe e arraste para redimensionar (Padrão Word)"
-                                              className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-se-resize flex items-center justify-center hover:scale-125 transition-transform"
-                                            >
-                                              <span className="w-1.5 h-1.5 bg-white rounded-2xs" />
-                                            </div>
+                                              title="Arrastar largura"
+                                              className="absolute top-1/2 -left-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
+                                            />
 
+                                            {/* 3. Alça Inferior (Ajustar Altura) */}
                                             <div 
                                               onMouseDown={(e) => {
                                                 e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startWidth = imageWidth;
-                                                const onMouseMove = (moveEvent: MouseEvent) => {
-                                                  const deltaX = startX - moveEvent.clientX;
-                                                  const newW = Math.min(100, Math.max(25, startWidth + (deltaX / 4)));
-                                                  setImageWidth(Math.round(newW));
+                                                const startY = e.clientY;
+                                                const startH = imageHeight;
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dY = ev.clientY - startY;
+                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
                                                 };
                                                 const onMouseUp = () => {
                                                   window.removeEventListener("mousemove", onMouseMove);
@@ -2902,15 +3073,63 @@ ${latexChapters}
                                                 window.addEventListener("mousemove", onMouseMove);
                                                 window.addEventListener("mouseup", onMouseUp);
                                               }}
-                                              title="Puxe e arraste para redimensionar (Padrão Word)"
-                                              className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-sw-resize flex items-center justify-center hover:scale-125 transition-transform"
-                                            >
-                                              <span className="w-1.5 h-1.5 bg-white rounded-2xs" />
-                                            </div>
+                                              title="Arrastar altura"
+                                              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ns-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
+                                            />
 
-                                            {/* Indicador discreto de tamanho flutuante ao passar o mouse */}
-                                            <div className="absolute -top-7 right-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/85 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                                              {imageWidth}% da página
+                                            {/* 4. Alça Canto Inferior Direito (Ajustar Altura e Largura Simultâneos) */}
+                                            <div 
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startY = e.clientY;
+                                                const startW = imageWidth;
+                                                const startH = imageHeight;
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dX = ev.clientX - startX;
+                                                  const dY = ev.clientY - startY;
+                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Puxar e arrastar altura e largura (Padrão Word)"
+                                              className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-se-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
+                                            />
+
+                                            {/* 5. Alça Canto Inferior Esquerdo */}
+                                            <div 
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startY = e.clientY;
+                                                const startW = imageWidth;
+                                                const startH = imageHeight;
+                                                const onMouseMove = (ev: MouseEvent) => {
+                                                  const dX = startX - ev.clientX;
+                                                  const dY = ev.clientY - startY;
+                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Puxar e arrastar altura e largura (Padrão Word)"
+                                              className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-sw-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
+                                            />
+
+                                            {/* Badge Discreta com Dimensões Exatas */}
+                                            <div className="absolute -top-7 right-0 opacity-0 group-hover/box:opacity-100 transition-opacity bg-gray-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                                              {imageWidth}% L × {imageHeight}px A
                                             </div>
                                           </div>
                                         </div>
