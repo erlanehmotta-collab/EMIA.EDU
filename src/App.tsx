@@ -1214,103 +1214,281 @@ Assistente:`;
   };
 
   const exportPDF = () => {
-    if (!generatedText) return;
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Nenhum texto disponível para exportar.");
+      return;
+    }
+
     const doc = new jsPDF({ 
       unit: 'mm',
       format: 'a4',
       orientation: 'portrait'
     });
     
-    doc.setFont("times", "normal");
-    doc.setFontSize(12);
-    
-    const marginLeft = 30; // 3cm
-    const marginTop = 30;  // 3cm
-    const marginRight = 20; // 2cm
-    const marginBottom = 20; // 2cm
-    const printableWidth = 210 - marginLeft - marginRight; // 160mm
-    const maxY = 297 - marginBottom; // 277mm
-    const lineHeight = 7.5; // Espaçamento 1.5 para fonte 12pt
-    
-    // Divide por quebras de página ABNT
-    const rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
-    let pageCount = 0;
+    // Configurações Globais ABNT NBR 14724
+    const marginLeft = 30; // 3,0 cm Margem Esquerda
+    const marginTop = 30;  // 3,0 cm Margem Superior
+    const marginRight = 20; // 2,0 cm Margem Direita
+    const marginBottom = 20; // 2,0 cm Margem Inferior
+    const printableWidth = 210 - marginLeft - marginRight; // 160 mm
+    const maxY = 297 - marginBottom; // 277 mm
+    const lineHeight = 6.5; // Espaçamento 1.5 para corpo
+    const pageRightEdge = 210 - marginRight; // 190 mm
+
+    // Normalização das Páginas ABNT
+    let rawPages: string[] = [];
+    if (generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+      rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+    } else {
+      const paragraphs = generatedText.split(/\n\n+/);
+      let curPage = "";
+      for (const para of paragraphs) {
+        if ((curPage + "\n\n" + para).length > 2000 && curPage.trim().length > 0) {
+          rawPages.push(curPage.trim());
+          curPage = para;
+        } else {
+          curPage = curPage ? curPage + "\n\n" + para : para;
+        }
+      }
+      if (curPage.trim()) rawPages.push(curPage.trim());
+    }
+
+    const requiresFormalCover = !["resumo", "redacao", "resenha"].includes(documentType);
+    let currentPageNum = 0;
 
     rawPages.forEach((pageContent, pageIdx) => {
-      if (pageIdx > 0) doc.addPage();
-      pageCount++;
-      
-      // Regra ABNT NBR 14724 Oficial: Numeração arábica a partir da página 3 (Introdução) no Canto Superior Direito
-      if (pageCount >= 3) {
+      const trimmedPage = pageContent.trim();
+      if (!trimmedPage) return;
+
+      if (currentPageNum > 0) {
+        doc.addPage();
+      }
+      currentPageNum++;
+
+      const isCover = requiresFormalCover && pageIdx === 0;
+      const isTitlePage = requiresFormalCover && pageIdx === 1;
+      const isTextualBody = !requiresFormalCover || pageIdx >= 2;
+
+      // Numeração Oficial: Canto Superior Direito a partir da página textual (NBR 14724)
+      if (isTextualBody) {
+        doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text(String(pageCount), 190, 20, { align: "right" });
-        doc.setFontSize(12);
+        doc.text(String(currentPageNum), pageRightEdge, 20, { align: "right" });
       }
 
       let cursorY = marginTop;
-      const isCover = pageIdx === 0;
-      const isTitlePage = pageIdx === 1;
 
-      const paragraphs = pageContent.split('\n');
-      paragraphs.forEach((paragraph) => {
-        if (!paragraph.trim()) {
-          cursorY += lineHeight * 0.8;
-          if (cursorY > maxY) {
-            doc.addPage();
-            pageCount++;
-            if (pageCount >= 3) {
-              doc.setFontSize(10);
-              doc.text(String(pageCount), 190, 20, { align: "right" });
-              doc.setFontSize(12);
-            }
-            cursorY = marginTop;
-          }
-          return;
+      if (isCover) {
+        // --- 1. CAPA OFICIAL ABNT NBR 14724 ---
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+
+        const instLines = (institution || "INSTITUIÇÃO DE ENSINO SUPERIOR").toUpperCase().split("\n");
+        instLines.forEach(line => {
+          doc.text(line, 105, cursorY, { align: "center" });
+          cursorY += 6;
+        });
+
+        if (course) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          doc.text(course.toUpperCase(), 105, cursorY, { align: "center" });
         }
 
-        // Folha de Rosto: Nota de Natureza recuada à direita com fonte 10pt
-        const isRightNature = isTitlePage && (paragraph.trim().startsWith("Trabalho") || paragraph.trim().startsWith("Monografia") || paragraph.trim().startsWith("Artigo") || paragraph.trim().startsWith("Dissertação") || paragraph.trim().startsWith("Tese") || paragraph.trim().startsWith("Orientador"));
-        
-        if (isRightNature) {
-          doc.setFontSize(10);
-          const natureLines = doc.splitTextToSize(paragraph.trim(), 80);
-          natureLines.forEach((nLine: string) => {
-            if (cursorY > maxY) {
+        // Autor
+        cursorY = 90;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text((studentName || "NOME DO(A) AUTOR(A)").toUpperCase(), 105, cursorY, { align: "center" });
+
+        // Título e Subtítulo
+        cursorY = 145;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        const titleText = (title || "TÍTULO DO TRABALHO").toUpperCase();
+        const splitTitle = doc.splitTextToSize(titleText, 150);
+        splitTitle.forEach((tLine: string) => {
+          doc.text(tLine, 105, cursorY, { align: "center" });
+          cursorY += 7;
+        });
+
+        if (subtitle) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(12);
+          doc.text(`: ${subtitle}`, 105, cursorY, { align: "center" });
+        }
+
+        // Cidade e Ano (Rodapé)
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text((city || "CIDADE - UF").toUpperCase(), 105, 265, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.text(year || String(new Date().getFullYear()), 105, 272, { align: "center" });
+
+      } else if (isTitlePage) {
+        // --- 2. FOLHA DE ROSTO / CONTRACAPA OFICIAL ABNT NBR 14724 ---
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text((studentName || "NOME DO(A) AUTOR(A)").toUpperCase(), 105, marginTop + 10, { align: "center" });
+
+        // Título
+        cursorY = 100;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        const titleText = (title || "TÍTULO DO TRABALHO").toUpperCase();
+        const splitTitle = doc.splitTextToSize(titleText, 150);
+        splitTitle.forEach((tLine: string) => {
+          doc.text(tLine, 105, cursorY, { align: "center" });
+          cursorY += 7;
+        });
+
+        if (subtitle) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          doc.text(`: ${subtitle}`, 105, cursorY, { align: "center" });
+        }
+
+        // Nota de Apresentação com Recuo de 7,5cm / alinhada à direita
+        cursorY = 150;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+
+        const presentationNote = documentType.includes("artigo")
+          ? `Artigo científico/acadêmico apresentado ao(à) ${institution || "Instituição de Ensino"}, como requisito de avaliação acadêmica.`
+          : `Trabalho de Conclusão de Curso apresentado ao(à) ${institution || "Instituição de Ensino"}, como requisito parcial para obtenção de grau.`;
+
+        const noteLines = doc.splitTextToSize(presentationNote, 80);
+        noteLines.forEach((nLine: string) => {
+          doc.text(nLine, 110, cursorY);
+          cursorY += 5;
+        });
+
+        if (advisor) {
+          cursorY += 2;
+          doc.setFont("helvetica", "bold");
+          doc.text(`Orientador(a): ${advisor}`, 110, cursorY);
+          doc.setFont("helvetica", "normal");
+        }
+
+        // Cidade e Ano (Rodapé)
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text((city || "CIDADE - UF").toUpperCase(), 105, 265, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.text(year || String(new Date().getFullYear()), 105, 272, { align: "center" });
+
+      } else {
+        // --- 3. CORPO DO TEXTO (PÁGINAS TEXTUAIS ABNT) ---
+        doc.setFont("times", "normal");
+        doc.setFontSize(12);
+
+        const paragraphs = trimmedPage.split("\n");
+
+        paragraphs.forEach((para) => {
+          const rawPara = para.trim();
+          if (!rawPara) {
+            cursorY += lineHeight * 0.6;
+            return;
+          }
+
+          // Títulos de Seção (1 INTRODUÇÃO, RESUMO, REFERÊNCIAS, etc.)
+          const isHeading = /^(?:\d+(?:\.\d+)*\s+[A-ZÀ-Ú\s]+|RESUMO|ABSTRACT|SUMÁRIO|REFERÊNCIAS|CONSIDERAÇÕES FINAIS)$/.test(rawPara);
+          // Citação Longa (> 3 linhas com recuo de 4cm)
+          const isLongQuote = rawPara.startsWith("[CITAÇÃO_LONGA]") || rawPara.startsWith("   ") || (rawPara.length > 200 && rawPara.startsWith("    "));
+          // Tabela ou Quadro
+          const isTableOrFrame = rawPara.startsWith("Tabela") || rawPara.startsWith("Quadro") || rawPara.startsWith("Fonte:") || rawPara.startsWith("|") || rawPara.startsWith("+-") || rawPara.startsWith("--");
+
+          if (isHeading) {
+            cursorY += 4;
+            if (cursorY > maxY - 15) {
               doc.addPage();
-              pageCount++;
+              currentPageNum++;
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(10);
+              doc.text(String(currentPageNum), pageRightEdge, 20, { align: "right" });
               cursorY = marginTop;
             }
-            doc.text(nLine, 110, cursorY);
-            cursorY += 5;
-          });
-          doc.setFontSize(12);
-          return;
-        }
+            doc.setFont("times", "bold");
+            doc.setFontSize(12);
+            doc.text(rawPara, marginLeft, cursorY);
+            doc.setFont("times", "normal");
+            cursorY += lineHeight + 2;
+            return;
+          }
 
-        const lines = doc.splitTextToSize(paragraph, printableWidth);
-        lines.forEach((line: string) => {
-          if (cursorY > maxY) {
-            doc.addPage();
-            pageCount++;
-            if (pageCount >= 3) {
+          if (isTableOrFrame) {
+            doc.setFont("courier", "normal");
+            doc.setFontSize(9.5);
+            const tableLines = doc.splitTextToSize(rawPara, printableWidth);
+            tableLines.forEach((tLine: string) => {
+              if (cursorY > maxY) {
+                doc.addPage();
+                currentPageNum++;
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.text(String(currentPageNum), pageRightEdge, 20, { align: "right" });
+                cursorY = marginTop;
+                doc.setFont("courier", "normal");
+                doc.setFontSize(9.5);
+              }
+              doc.text(tLine, marginLeft, cursorY);
+              cursorY += 4.8;
+            });
+            doc.setFont("times", "normal");
+            doc.setFontSize(12);
+            return;
+          }
+
+          if (isLongQuote) {
+            const cleanQuote = rawPara.replace(/^\[CITAÇÃO_LONGA\]\s*/, '').trim();
+            doc.setFontSize(10);
+            const quoteLines = doc.splitTextToSize(cleanQuote, printableWidth - 40); // Recuo de 4cm
+            quoteLines.forEach((qLine: string) => {
+              if (cursorY > maxY) {
+                doc.addPage();
+                currentPageNum++;
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.text(String(currentPageNum), pageRightEdge, 20, { align: "right" });
+                cursorY = marginTop;
+                doc.setFont("times", "normal");
+                doc.setFontSize(10);
+              }
+              doc.text(qLine, marginLeft + 40, cursorY);
+              cursorY += 5;
+            });
+            doc.setFontSize(12);
+            cursorY += 2;
+            return;
+          }
+
+          // Parágrafo Regular Justificado com Recuo de Primeira Linha (1,25 cm)
+          const firstLineIndent = 12.5; // 1.25 cm
+          const paraLines = doc.splitTextToSize(rawPara, printableWidth);
+
+          paraLines.forEach((line: string, lIdx: number) => {
+            if (cursorY > maxY) {
+              doc.addPage();
+              currentPageNum++;
+              doc.setFont("helvetica", "normal");
               doc.setFontSize(10);
-              doc.text(String(pageCount), 190, 20, { align: "right" });
+              doc.text(String(currentPageNum), pageRightEdge, 20, { align: "right" });
+              cursorY = marginTop;
+              doc.setFont("times", "normal");
               doc.setFontSize(12);
             }
-            cursorY = marginTop;
-          }
-          
-          if (isCover || (isTitlePage && cursorY < 120)) {
-            doc.text(line, 105, cursorY, { align: "center" });
-          } else {
-            doc.text(line, marginLeft, cursorY);
-          }
-          cursorY += lineHeight;
+
+            const xPos = lIdx === 0 ? marginLeft + firstLineIndent : marginLeft;
+            doc.text(line, xPos, cursorY);
+            cursorY += lineHeight;
+          });
+
+          cursorY += 1.5; // Espaço entre parágrafos
         });
-      });
+      }
     });
 
-    doc.save("trabalho-abnt-a4.pdf");
+    doc.save(`trabalho-abnt-${(title || "documento").toLowerCase().replace(/[^a-z0-9]/g, "-")}.pdf`);
   };
 
   const exportWord = async () => {
