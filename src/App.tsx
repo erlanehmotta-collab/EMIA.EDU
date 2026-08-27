@@ -1923,7 +1923,7 @@ ${latexChapters}
                   className="w-full bg-gray-50 border-gray-300 hover:bg-gray-100 flex items-center justify-between"
                 >
                   <span className="text-sm font-medium text-gray-700">
-                    Dados do aluno
+                    Dados do Aluno
                   </span>
                   <span className="text-gray-500 text-xs">{showWorkData ? "Ocultar" : "Preencher"}</span>
                 </Button>
