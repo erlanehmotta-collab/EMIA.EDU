@@ -2848,58 +2848,70 @@ ${latexChapters}
                                     const imgMatch = part.match(/!\[Figura inserida\]\((.*?)\)/);
                                     if (imgMatch) {
                                       return (
-                                        <div key={pPartIdx} className="my-6 flex flex-col items-center justify-center group relative select-none">
-                                          {/* Barra de Ajuste e Edição da Imagem (Tamanho e Bordas) */}
-                                          <div className="flex items-center gap-3 bg-white/95 backdrop-blur px-3 py-1.5 rounded-full border border-gray-200 shadow-md mb-3 transition-opacity">
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Largura:</span>
-                                            <button 
-                                              type="button"
-                                              onClick={() => setImageWidth(w => Math.max(30, w - 10))}
-                                              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded"
-                                            >
-                                              -
-                                            </button>
-                                            <span className="text-xs font-semibold text-gray-800 tabular-nums">{imageWidth}%</span>
-                                            <button 
-                                              type="button"
-                                              onClick={() => setImageWidth(w => Math.min(100, w + 10))}
-                                              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded"
-                                            >
-                                              +
-                                            </button>
-
-                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
-
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Bordas:</span>
-                                            <button 
-                                              type="button"
-                                              onClick={() => setImageBorder(b => b === "none" ? "thin" : b === "thin" ? "medium" : "none")}
-                                              className={`px-2 py-0.5 text-xs font-semibold rounded ${imageBorder !== "none" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                            >
-                                              {imageBorder === "none" ? "Sem Borda" : imageBorder === "thin" ? "Borda Fina" : "Borda Média"}
-                                            </button>
-
-                                            <button 
-                                              type="button"
-                                              onClick={() => setImageRounded(r => !r)}
-                                              className={`px-2 py-0.5 text-xs font-semibold rounded ${imageRounded ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                            >
-                                              {imageRounded ? "Arredondada" : "Reta"}
-                                            </button>
-                                          </div>
-
-                                          {/* Caixa Ilustrativa da Imagem no Padrão ABNT */}
+                                        <div key={pPartIdx} className="my-6 flex flex-col items-center justify-center relative select-none">
+                                          {/* Container no Estilo Word com Alças de Arraste (Resize Handles) */}
                                           <div 
                                             style={{ width: `${imageWidth}%` }}
-                                            className={`transition-all duration-200 flex flex-col items-center justify-center p-2 bg-white ${
-                                              imageBorder === "thin" ? "border border-gray-400" : imageBorder === "medium" ? "border-2 border-gray-700" : "border-0"
-                                            } ${imageRounded ? "rounded-xl" : "rounded-none"} shadow-xs`}
+                                            className="relative group p-1.5 border border-transparent hover:border-blue-400 hover:border-dashed rounded transition-all flex flex-col items-center"
                                           >
                                             <img 
                                               src={imgMatch[1]} 
                                               alt="Figura acadêmica" 
-                                              className={`w-full h-auto max-h-[450px] object-contain ${imageRounded ? "rounded-lg" : "rounded-none"}`} 
+                                              className="w-full h-auto object-contain rounded shadow-xs cursor-pointer select-none" 
+                                              draggable={false}
                                             />
+
+                                            {/* Alças de Arraste nos 4 Cantos (Word Resize Handles) */}
+                                            <div 
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startWidth = imageWidth;
+                                                const onMouseMove = (moveEvent: MouseEvent) => {
+                                                  const deltaX = moveEvent.clientX - startX;
+                                                  const newW = Math.min(100, Math.max(25, startWidth + (deltaX / 4)));
+                                                  setImageWidth(Math.round(newW));
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Puxe e arraste para redimensionar (Padrão Word)"
+                                              className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-se-resize flex items-center justify-center hover:scale-125 transition-transform"
+                                            >
+                                              <span className="w-1.5 h-1.5 bg-white rounded-2xs" />
+                                            </div>
+
+                                            <div 
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                const startX = e.clientX;
+                                                const startWidth = imageWidth;
+                                                const onMouseMove = (moveEvent: MouseEvent) => {
+                                                  const deltaX = startX - moveEvent.clientX;
+                                                  const newW = Math.min(100, Math.max(25, startWidth + (deltaX / 4)));
+                                                  setImageWidth(Math.round(newW));
+                                                };
+                                                const onMouseUp = () => {
+                                                  window.removeEventListener("mousemove", onMouseMove);
+                                                  window.removeEventListener("mouseup", onMouseUp);
+                                                };
+                                                window.addEventListener("mousemove", onMouseMove);
+                                                window.addEventListener("mouseup", onMouseUp);
+                                              }}
+                                              title="Puxe e arraste para redimensionar (Padrão Word)"
+                                              className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-sw-resize flex items-center justify-center hover:scale-125 transition-transform"
+                                            >
+                                              <span className="w-1.5 h-1.5 bg-white rounded-2xs" />
+                                            </div>
+
+                                            {/* Indicador discreto de tamanho flutuante ao passar o mouse */}
+                                            <div className="absolute -top-7 right-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/85 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                                              {imageWidth}% da página
+                                            </div>
                                           </div>
                                         </div>
                                       );
