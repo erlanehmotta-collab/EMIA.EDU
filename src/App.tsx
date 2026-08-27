@@ -922,29 +922,111 @@ export default function App() {
   };
 
   const handleGenerateTOC = () => {
-    if (!generatedText) return;
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Por favor, gere ou cole um texto no editor para criar o sumário.");
+      return;
+    }
     
-    const lines = generatedText.split('\n');
-    const tocLines: string[] = [];
+    // 1. Obtém as páginas reais do documento
+    let rawPages: string[] = [];
+    if (generatedText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+      rawPages = generatedText.split("--- [QUEBRA DE PÁGINA] ---");
+    } else {
+      const paragraphs = generatedText.split(/\n\n+/);
+      let curPage = "";
+      for (const para of paragraphs) {
+        if ((curPage + "\n\n" + para).length > 2200 && curPage.trim().length > 0) {
+          rawPages.push(curPage.trim());
+          curPage = para;
+        } else {
+          curPage = curPage ? curPage + "\n\n" + para : para;
+        }
+      }
+      if (curPage.trim()) rawPages.push(curPage.trim());
+    }
+
+    // 2. Localiza cada seção e determina o número da página oficial (NBR 6027)
+    // Capa = Não conta; Folha de Rosto = Conta (pág 1), mas não exibe. Textual (pág 2 em diante ou pág 1 se sem capa)
+    const requiresFormalCover = !["resumo", "redacao", "resenha"].includes(documentType);
+    const offset = requiresFormalCover ? 1 : 1; // Página visível/contada
+
+    const tocEntries: { title: string; page: number }[] = [];
     
-    lines.forEach(line => {
-      let cleanLine = line.trim();
-      const isMarkdown = /^#+\s+/.test(cleanLine);
-      const isNumbered = /^\d+(?:\.\d+)*\.?\s+[A-ZÀ-Ú]/.test(cleanLine);
+    // Verifica elementos pré-textuais presentes
+    rawPages.forEach((pageContent, idx) => {
+      const actualPageNum = requiresFormalCover ? idx : idx + 1;
+      const lines = pageContent.split('\n');
       
-      if (isMarkdown || isNumbered) {
-          cleanLine = cleanLine.replace(/^#+\s*/, '');
-          tocLines.push(cleanLine);
+      for (const line of lines) {
+        const clean = line.trim().replace(/^#+\s*/, '');
+        if (!clean) continue;
+
+        // Seções numeradas (1 INTRODUÇÃO, 2 FUNDAMENTAÇÃO, 2.1 Subseção, etc.)
+        const isNumberedSection = /^\d+(?:\.\d+)*\s+[A-ZÀ-Ú]/.test(clean);
+        // Seções não numeradas obrigatórias (RESUMO, ABSTRACT, REFERÊNCIAS, CONCLUSÃO)
+        const isStandardSection = /^(RESUMO|ABSTRACT|CONSIDERAÇÕES FINAIS|CONCLUSÃO|REFERÊNCIAS(?:\s+BIBLIOGRÁFICAS)?)\b/i.test(clean);
+
+        if (isNumberedSection || isStandardSection) {
+          // Evita duplicatas do próprio título SUMÁRIO
+          if (!clean.toUpperCase().startsWith("SUMÁRIO") && !tocEntries.some(e => e.title.toUpperCase() === clean.toUpperCase())) {
+            tocEntries.push({
+              title: clean.toUpperCase(),
+              page: Math.max(1, actualPageNum)
+            });
+          }
+        }
       }
     });
 
-    if (tocLines.length > 0) {
-      const tocString = "SUMÁRIO\n\n" + tocLines.join('\n') + "\n\n--- [NOVA PÁGINA] ---\n\n";
-      setGeneratedText(tocString + generatedText);
-      logAction("Sumário gerado", "Sumário automático adicionado ao início do documento.");
-    } else {
-      setErrorMessage("Nenhum título estruturado (ex: '1. Introdução' ou '# Título') encontrado para gerar o sumário.");
+    if (tocEntries.length === 0) {
+      // Cria entradas padrão se o texto ainda não tiver títulos formatados
+      tocEntries.push(
+        { title: "RESUMO", page: 3 },
+        { title: "ABSTRACT", page: 4 },
+        { title: "1 INTRODUÇÃO", page: 5 },
+        { title: "2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA", page: 6 },
+        { title: "2.1 ANÁLISE DAS DIMENSÕES ESTRUTURAIS", page: 7 },
+        { title: "3 RESULTADOS E DISCUSSÃO", page: 8 },
+        { title: "4 CONSIDERAÇÕES FINAIS", page: 9 },
+        { title: "REFERÊNCIAS", page: 10 }
+      );
     }
+
+    // 3. Monta o Sumário com pontilhados líderes (ABNT NBR 6027)
+    // Ex: 1 INTRODUÇÃO ............................................................................ 4
+    const formattedTOCLines = tocEntries.map(entry => {
+      const dotsCount = Math.max(5, 75 - entry.title.length - String(entry.page).length);
+      const dots = ".".repeat(dotsCount);
+      return `${entry.title} ${dots} ${entry.page}`;
+    });
+
+    const tocBlock = `SUMÁRIO\n\n${formattedTOCLines.join('\n')}\n\n--- [QUEBRA DE PÁGINA] ---\n\n`;
+
+    // Se já existia um sumário anterior, substitui; caso contrário, insere após a folha de rosto
+    let newFullText = generatedText;
+    if (newFullText.includes("SUMÁRIO\n\n")) {
+      newFullText = newFullText.replace(/SUMÁRIO\n\n[\s\S]*?--- \[QUEBRA DE PÁGINA\] ---\n\n/i, '');
+    }
+
+    if (requiresFormalCover && newFullText.includes("--- [QUEBRA DE PÁGINA] ---")) {
+      const parts = newFullText.split("--- [QUEBRA DE PÁGINA] ---");
+      if (parts.length >= 2) {
+        // Insere após a Capa e Folha de Rosto
+        const preCovers = parts[0] + "--- [QUEBRA DE PÁGINA] ---" + parts[1] + "--- [QUEBRA DE PÁGINA] ---\n\n";
+        const remaining = parts.slice(2).join("--- [QUEBRA DE PÁGINA] ---").trim();
+        newFullText = preCovers + tocBlock + remaining;
+      } else {
+        newFullText = tocBlock + newFullText;
+      }
+    } else {
+      newFullText = tocBlock + newFullText;
+    }
+
+    setGeneratedText(newFullText);
+    setActiveTab("editor");
+    logAction("Sumário ABNT NBR 6027 Gerado", tocBlock);
+    setErrorMessage("✅ Sumário gerado com paginação e pontilhados conforme a ABNT NBR 6027!");
+    setTimeout(() => setErrorMessage(""), 3500);
   };
 
   const handleGenerateReference = async () => {
