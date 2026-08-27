@@ -2684,20 +2684,41 @@ ${latexChapters}
                         ) : (
                           /* RENDERIZAÇÃO DO CORPO DO TRABALHO ABNT (PÁGINAS 3 EM DIANTE - 100% EDITÁVEL) */
                           <div className="flex-1 flex flex-col font-['Arial'] text-gray-900 select-text">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              spellCheck={true}
-                              lang="pt-BR"
-                              onInput={(e) => {
-                                const newPages = [...pages];
-                                newPages[pIdx] = e.currentTarget.innerText;
-                                setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
-                              }}
-                              className="w-full focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm sm:text-base indent-8 bg-transparent min-h-[500px] whitespace-pre-wrap focus:ring-1 focus:ring-blue-300 p-2 rounded"
-                            >
-                              {text && text !== "CAPA_AUTO" && text !== "FOLHA_ROSTO_AUTO" ? text.trimStart() : ""}
-                            </div>
+                            {text.trim().startsWith("SUMÁRIO") ? (
+                              <div className="w-full font-['Arial'] text-gray-900 leading-[1.8] text-sm sm:text-base py-2">
+                                <div className="font-bold text-center text-base mb-6 tracking-wide">SUMÁRIO</div>
+                                <div className="space-y-1 font-mono text-xs sm:text-sm">
+                                  {text.split('\n').filter(l => l.trim() && !l.trim().startsWith("SUMÁRIO")).map((line, lIdx) => {
+                                    const match = line.match(/^(.*?)\s*(\.{3,})\s*(\d+)$/);
+                                    if (match) {
+                                      return (
+                                        <div key={lIdx} className="flex items-baseline justify-between gap-2">
+                                          <span className="font-semibold text-gray-900 truncate">{match[1].trim()}</span>
+                                          <span className="flex-1 border-b border-dotted border-gray-400 mx-1 mb-1" />
+                                          <span className="font-bold text-gray-800 tabular-nums">{match[3]}</span>
+                                        </div>
+                                      );
+                                    }
+                                    return <div key={lIdx} className="font-semibold text-gray-800">{line}</div>;
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                spellCheck={true}
+                                lang="pt-BR"
+                                onInput={(e) => {
+                                  const newPages = [...pages];
+                                  newPages[pIdx] = e.currentTarget.innerText;
+                                  setGeneratedText(newPages.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n"));
+                                }}
+                                className="w-full focus:outline-none font-['Arial'] text-gray-900 leading-[1.6] text-justify text-sm sm:text-base indent-8 bg-transparent min-h-[500px] whitespace-pre-wrap focus:ring-1 focus:ring-blue-300 p-2 rounded"
+                              >
+                                {text && text !== "CAPA_AUTO" && text !== "FOLHA_ROSTO_AUTO" ? text.trimStart() : ""}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

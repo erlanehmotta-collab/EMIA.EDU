@@ -245,22 +245,24 @@ ${studentName ? `Resenhista: ${studentName}
 `;
   }
 
-  // DIRETRIZES DO CORPO TEXTUAL
+  // DIRETRIZES DO CORPO TEXTUAL COM ESPAÇAMENTO E ALINHAMENTO RIGOROSOS
   let genreInstructions = "";
   if (documentType === "resumo") {
     genreInstructions = `ESTRUTURA DE RESUMO / FICHAMENTO (ABNT NBR 6028):
 - REGRA: NÃO use Capa nem Folha de Rosto.
-- Escreva em PARÁGRAFO ÚNICO contínuo e justificado (150 a 500 palavras) com objetivo, metodologia, resultados e conclusão.
-- Finalize com: "Palavras-chave: [3 a 5 palavras separadas por ponto final]."`;
+- Título centralizado: "RESUMO"
+- EXATAMENTE 1 linha em branco entre o título "RESUMO" e o início do texto.
+- Texto em PARÁGRAFO ÚNICO contínuo e justificado (150 a 500 palavras) sem recuo de primeira linha, contendo objetivo, metodologia, resultados e conclusões.
+- 1 linha em branco e então: "Palavras-chave: [3 a 5 palavras separadas por ponto final]."`;
   } else if (documentType === "redacao") {
     genreInstructions = `ESTRUTURA DE REDAÇÃO (PADRÃO ENEM NOTA 1000):
 - REGRA: NÃO use Capa nem Folha de Rosto.
-- 4 parágrafos contínuos: Introdução com tese, Desenvolvimento 1, Desenvolvimento 2 e Proposta de Intervenção completa.`;
+- 4 parágrafos contínuos: Introdução com tese, Desenvolvimento 1, Desenvolvimento 2 e Proposta de Intervenção completa com os 5 elementos (Agente, Ação, Meio/Modo, Efeito e Detalhamento).`;
   } else {
     genreInstructions = `ESTRUTURA ACADÊMICA ABNT COMPLETA (NBR 14724 & NBR 6022):
-- RESUMO em português (150 a 250 palavras) e Palavras-chave.
-- ABSTRACT em inglês correspondente e Keywords.
-- SUMÁRIO com as seções numeradas.
+- RESUMO em português (Título "RESUMO", 1 linha em branco, parágrafo de 150 a 250 palavras, 1 linha em branco e "Palavras-chave: ...").
+- ABSTRACT em inglês correspondente (Título "ABSTRACT", 1 linha em branco, parágrafo, 1 linha em branco e "Keywords: ...").
+- SUMÁRIO com pontilhados líderes alinhando o número de cada página à direita (NBR 6027).
 - 1 INTRODUÇÃO (Problematização, hipótese, objetivos e relevância).
 - 2 FUNDAMENTAÇÃO TEÓRICA E METODOLOGIA
 - 2.1 Análise das Dimensões Estruturais
@@ -269,8 +271,8 @@ ${studentName ? `Resenhista: ${studentName}
 - REFERÊNCIAS (NBR 6023 em ordem alfabética).`;
   }
 
-  const systemPrompt = `Você é um assistente acadêmico e normalizador sênior especializado nas normas da ABNT e diretrizes das bibliotecas UNESP e USP.
-Elabore um(a) ${selectedTypeName} completo(a), profundo(a), rigoroso(a) e com alto nível acadêmico sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
+  const systemPrompt = `Você é um dos maiores Professores e Gramáticos de Língua Portuguesa Brasileira do país, associado a normalizadores acadêmicos seniores das bibliotecas da UNESP e USP.
+Elabore um(a) ${selectedTypeName} magistral, profundo(a), com rigor gramatical absoluto, vocabulário culto impecável e perfeita aderência às normas da ABNT sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
 
 ================================================================================
 🚨 INSTRUÇÕES MANDATÓRIAS E PRIORITÁRIAS DO USUÁRIO (OBEDIÊNCIA ESTRITA E TOTAL):
@@ -279,15 +281,14 @@ ${prompt ? `O usuário determinou expressamente as seguintes instruções que DE
 
 ${genreInstructions}
 
-NORMAS TÉCNICAS E ESTRUTURAIS:
-1. DIRETRIZES DO USUÁRIO EM PRIMEIRO LUGAR: Cumpra cada detalhe, exigência, capítulo, tabela, imagem ou tópico solicitado pelo usuário acima.
-2. TABELAS E ELEMENTOS ILUSTRATIVOS (PADRÃO IBGE / ABNT):
-   - Na seção de Resultados e Discussão (ou onde pertinente pelo tema), inclua OBRIGATORIAMENTE uma Tabela formatada em padrão IBGE (com título no topo "Tabela 1 – Descrição", linhas horizontais no cabeçalho e rodapé, laterais abertas sem linhas verticais, e "Fonte: Os autores (2026)" ou similar no rodapé).
-   - Inclua também uma descrição conceitual ou representação esquemática ilustrativa ("Quadro 1 – Síntese das Variáveis Investigadas" com Fonte abaixo).
-3. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
-4. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
-5. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
-6. Formato limpo: Sem saudações ou comentários externos.`;
+NORMAS LINGUÍSTICAS E TÉCNICAS INEGOCIÁVEIS:
+1. EXCELÊNCIA GRAMATICAL: Proibido qualquer desvio de regência, concordância, crase ou pontuação. Redação no mais alto padrão culto do Português Brasileiro.
+2. ESPAÇAMENTO DO RESUMO (NBR 6028): Deixe EXATAMENTE 1 linha em branco entre o título "RESUMO" e o início do texto. Deixe EXATAMENTE 1 linha em branco antes de "Palavras-chave:".
+3. SUMÁRIO PERFEITO (NBR 6027): Todas as seções devem ser seguidas de pontilhados líderes regulares (ex: "1 INTRODUÇÃO ............................................................................ 4").
+4. TABELAS E ILUSTRAÇÕES (IBGE / ABNT): Na seção de Resultados e Discussão, inclua 1 Tabela padrão IBGE (laterais abertas) e 1 Quadro ilustrativo, ambos com "Fonte:".
+5. CITAÇÕES (NBR 10520:2023): Sistema autor-data em caixa mista: (Silva, 2023, p. 15).
+6. REFERÊNCIAS (NBR 6023): Alinhadas à esquerda, entrelinha simples, separadas por 1 linha em branco.
+7. ZERO CLICHÊS DE IA: Proibido usar "Em suma", "Vale ressaltar", "No cenário atual", "Podemos concluir".`;
 
   try {
     const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
@@ -318,6 +319,7 @@ Infere-se, portanto, a urgência de intervenções coordenadas para transformar 
   }
 
   const preTextualBody = `RESUMO
+
 O presente trabalho investiga as dinâmicas teóricas e práticas concernentes a ${cleanTopic}. Com base em uma abordagem metodológica qualitativa e exploratória, realizou-se uma revisão bibliográfica sistemática com o fito de analisar os principais desafios e avanços na área. Os resultados evidenciam que a sistematização e o rigor normativo potencializam a qualidade e o impacto dos achados científicos. Conclui-se que o aprofundamento das reflexões teóricas permanece basilar para a inovação acadêmica.
 
 Palavras-chave: ${cleanTopic}. Normalização Documentária. Metodologia da Pesquisa. Produção Científica.
@@ -325,6 +327,7 @@ Palavras-chave: ${cleanTopic}. Normalização Documentária. Metodologia da Pesq
 --- [QUEBRA DE PÁGINA] ---
 
 ABSTRACT
+
 This study investigates the theoretical and practical dynamics concerning ${cleanTopic}. Based on a qualitative and exploratory methodological approach, a systematic literature review was conducted to analyze the primary challenges and advancements in the field. The findings indicate that systematization and normative rigor significantly enhance the quality and impact of scientific discoveries. It is concluded that continuous critical reflection remains essential for academic innovation.
 
 Keywords: ${cleanTopic}. Document Standardization. Research Methodology. Scientific Production.
