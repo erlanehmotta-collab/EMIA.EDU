@@ -763,6 +763,43 @@ export default function App() {
     }
   };
 
+  const handleImproveText = async () => {
+    if (!generatedText || !generatedText.trim()) {
+      setErrorMessage("Por favor, gere ou cole um texto no editor para aprimorar.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const promptGrammar = `Você é um dos maiores Professores e Gramáticos de Língua Portuguesa Brasileira do país, associado a normalizadores acadêmicos seniores (ABNT NBR 14724, 6022, 6028, 6023, 10520:2023).
+Reescreva, aprimore e eleve o texto acadêmico a seguir ao mais alto patamar de excelência:
+1. GRAMÁTICA E ESTILO: Domínio impecável da norma culta brasileira (regência, crase, concordância, colocação pronominal). Vocabulário erudito, fluido e preciso.
+2. ZERO CLICHÊS: Remova qualquer artificialidade de IA como "Em suma", "Vale ressaltar", "No cenário atual", "Podemos concluir".
+3. PADRONIZAÇÃO ABNT: Mantenha as seções, o espaçamento de 1 linha em branco no RESUMO (NBR 6028), citações autor-data em caixa mista (Silva, 2023, p. 15) e referências alinhadas à esquerda (NBR 6023).
+4. Retorne apenas o texto integral corrigido e aprimorado, sem comentários externos.
+
+TEXTO ORIGINAL:
+${generatedText}`;
+
+      const res = await callGeminiDirectly(promptGrammar, customGeminiKey, "gemini-3.6-flash");
+      if (res && res.length > 50) {
+        const normalized = normalizeCitationsToABNT2023(res);
+        setGeneratedText(normalized);
+        setActiveTab("editor");
+        logAction("Texto Aprimorado pelo Mestre de Língua Portuguesa e ABNT", normalized);
+        setErrorMessage("✨ Texto aprimorado com excelência gramatical e rigor acadêmico!");
+        setTimeout(() => setErrorMessage(""), 3500);
+      } else {
+        throw new Error("Falha ao aprimorar texto com a IA.");
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao aprimorar texto.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCorrectSpelling = async () => {
     if (!generatedText || !generatedText.trim()) {
       setErrorMessage("Por favor, gere ou insira um texto para verificar e corrigir a ortografia.");
@@ -771,26 +808,41 @@ export default function App() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/correct-spelling", {
-        method: "POST",
-        headers: getApiHeaders(),
-        body: JSON.stringify({ text: generatedText }),
-      });
-      const textData = await res.text();
-      let data;
-      try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-      if (data.success) {
-        setGeneratedText(data.text);
+      const promptSpelling = `Você é um Professor Titular e Gramático de Língua Portuguesa Brasileira e Normalizador ABNT.
+Faça uma revisão ortográfica, gramatical, sintática e estilística impecável no texto abaixo:
+- Corrija acentuação, ortografia oficial (Novo Acordo), regências, crases, concordâncias nominais/verbais e pontuação.
+- Mantenha estritamente a integridade de todas as seções ABNT, capas, sumários e referências.
+- Retorne apenas o documento integral devidamente revisado, sem prefácios ou explicações.
+
+TEXTO PARA REVISÃO:
+${generatedText}`;
+
+      const res = await callGeminiDirectly(promptSpelling, customGeminiKey, "gemini-3.6-flash");
+      if (res && res.length > 50) {
+        const normalized = normalizeCitationsToABNT2023(res);
+        setGeneratedText(normalized);
         setActiveTab("editor");
-        logAction("Correção Ortográfica e Gramatical Aplicada", data.text);
-        setErrorMessage("✅ Ortografia, gramática e concordâncias corrigidas com sucesso!");
+        logAction("Revisão Gramatical e Ortográfica Impecável Aplicada", normalized);
+        setErrorMessage("✅ Revisão gramatical e linguística de excelência aplicada com sucesso!");
         setTimeout(() => setErrorMessage(""), 3500);
       } else {
-        setErrorMessage(data.error || "Falha ao corrigir ortografia.");
+        // Fallback local via backend
+        const resLocal = await fetch("/api/correct-spelling", {
+          method: "POST",
+          headers: getApiHeaders(),
+          body: JSON.stringify({ text: generatedText }),
+        });
+        const data = await resLocal.json();
+        if (data.success) {
+          setGeneratedText(data.text);
+          setActiveTab("editor");
+          setErrorMessage("✅ Ortografia e gramática corrigidas!");
+          setTimeout(() => setErrorMessage(""), 3500);
+        }
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao corrigir ortografia.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao revisar ortografia.");
     } finally {
       setIsLoading(false);
     }
@@ -1057,49 +1109,7 @@ export default function App() {
     }
   };
 
-  const handleImproveText = async () => {
-    if (!generatedText) return;
 
-    let targetText = generatedText;
-    let isSelection = false;
-    let start = 0;
-    let end = 0;
-
-    if (textareaRef.current) {
-      start = textareaRef.current.selectionStart;
-      end = textareaRef.current.selectionEnd;
-      if (start !== end) {
-        targetText = generatedText.substring(start, end);
-        isSelection = true;
-      }
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/improve-text", {
-        method: "POST",
-        headers: getApiHeaders(),
-        body: JSON.stringify({ text: targetText, rules: formatRules }),
-      });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-      if (data.success) {
-        const normalized = normalizeCitationsToABNT2023(data.text);
-        if (isSelection) {
-          const newFullText = generatedText.substring(0, start) + normalized + generatedText.substring(end);
-          setGeneratedText(newFullText);
-        } else {
-          setGeneratedText(normalized);
-        }
-      } else {
-        setErrorMessage(data.error);
-      }
-    } catch (error) {
-      console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao aprimorar texto.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAttachmentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
