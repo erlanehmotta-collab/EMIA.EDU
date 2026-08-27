@@ -3,10 +3,9 @@ import { Button } from "./components/ui/button";
 import { 
   FileText, Upload, Plus, CheckCircle, FileDown, 
   Settings, Loader2, LogOut, ShieldCheck, Download, Copy,
-  UserCheck, BookOpen, Hash, Heading, Wand2, ImagePlus, Lock,
-  User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check, QrCode, Printer,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ZoomIn, ZoomOut, Maximize2, Minimize2,
-  Presentation, Play, Sliders, PanelLeftClose, PanelLeftOpen, Share2, ChevronsDown, ChevronDown, ArrowDown, FileCode
+  UserCheck, BookOpen, Hash, Wand2, ImagePlus, Lock,
+  User, Clock, Save, X, ListOrdered, Link, Sparkles, Coins, Check,
+  ZoomIn, ZoomOut, Presentation, PanelLeftClose, PanelLeftOpen, Share2, FileCode
 } from "lucide-react";
 import pptxgen from "pptxgenjs";
 import ReactMarkdown from "react-markdown";
