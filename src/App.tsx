@@ -2028,7 +2028,7 @@ ${latexChapters}
                 className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8"
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />}
-                ✍️ Correção Ortográfica
+                ✍️ Ortografia
               </Button>
               <Button 
                 onClick={handleCheckAuthenticity} 
@@ -2055,8 +2055,8 @@ ${latexChapters}
                 size="sm" 
                 className="text-xs h-8 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold shadow-xs flex items-center gap-1"
               >
-                <Presentation className="w-3.5 h-3.5 mr-1 animate-pulse" />
-                📽️ Slides (Google / PPTX)
+                <Presentation className="w-3.5 h-3.5 mr-1" />
+                📽️ Slides
               </Button>
               <Button onClick={exportPDF} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-rose-700 border-rose-200 hover:bg-rose-50 font-medium">
                 <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
@@ -2067,6 +2067,33 @@ ${latexChapters}
               <Button onClick={exportLaTeX} disabled={!generatedText} size="sm" className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">
                 <FileCode className="w-3.5 h-3.5 mr-1" /> LaTeX (abnTeX2)
               </Button>
+
+              {/* CONTROLE DE ZOOM INTEGRADO NA BARRA SUPERIOR */}
+              <div className="flex items-center bg-gray-100 border border-gray-300 rounded-lg p-0.5 gap-0.5 select-none flex-shrink-0 shadow-xs h-8 ml-1">
+                <button
+                  onClick={() => setZoomScale(z => Math.max(30, z - 10))}
+                  title="Diminuir Zoom (-10%)"
+                  className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                
+                <button
+                  onClick={() => setZoomScale(65)}
+                  title="Restaurar Zoom Padrão (65%)"
+                  className="px-1.5 py-0.5 text-xs font-bold text-gray-800 hover:text-blue-600 hover:bg-white rounded min-w-[38px] text-center"
+                >
+                  {zoomScale}%
+                </button>
+                
+                <button
+                  onClick={() => setZoomScale(z => Math.min(150, z + 10))}
+                  title="Aumentar Zoom (+10%)"
+                  className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -2387,33 +2414,6 @@ ${latexChapters}
                       <Hash className="w-4 h-4 mr-2 text-emerald-600" />
                       🔢 Repaginar ABNT A4
                     </Button>
-                  </div>
-
-                  {/* CONTROLE DE ZOOM INTEGRADO E ACOPLADO NO RODAPÉ */}
-                  <div className="flex items-center bg-gray-100 border border-gray-300 rounded-lg p-0.5 gap-0.5 select-none flex-shrink-0 shadow-xs">
-                    <button
-                      onClick={() => setZoomScale(z => Math.max(30, z - 10))}
-                      title="Diminuir Zoom (-10%)"
-                      className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
-                    >
-                      <ZoomOut className="w-3.5 h-3.5" />
-                    </button>
-                    
-                    <button
-                      onClick={() => setZoomScale(65)}
-                      title="Restaurar Zoom Padrão (65%)"
-                      className="px-2 py-0.5 text-xs font-bold text-gray-800 hover:text-blue-600 hover:bg-white rounded min-w-[40px] text-center"
-                    >
-                      {zoomScale}%
-                    </button>
-                    
-                    <button
-                      onClick={() => setZoomScale(z => Math.min(150, z + 10))}
-                      title="Aumentar Zoom (+10%)"
-                      className="p-1 hover:bg-white rounded text-gray-700 hover:text-blue-600 transition-all active:scale-95"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               </div>
