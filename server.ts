@@ -449,19 +449,23 @@ async function startServer() {
       REGRA RIGOROSA ABNT: NÃO crie página de capa nem folha de rosto para este gênero (${selectedType}). Inicie diretamente no conteúdo textual (NBR 6022 / NBR 6028).
       `;
 
-      const instruction = `Crie um(a) ${selectedType} detalhado(a) e aprofundado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
+      const instruction = `Crie um(a) ${selectedType} detalhado(a), aprofundado(a) e rigorosamente fundamentado(a) sobre o tema "${title || "Não informado"}"${subtitleText}.
       
+      ================================================================================
+      🚨 INSTRUÇÕES MANDATÓRIAS E PRIORITÁRIAS DO USUÁRIO (OBEDIÊNCIA ESTRITA E TOTAL):
+      ${prompt ? `O usuário determinou expressamente as seguintes instruções que DEVEM ser integralmente cumpridas no conteúdo, tabelas, ilustrações, estrutura e estilo:\n"${prompt}"` : "Desenvolva o tema com profundidade científica máxima e dados atualizados."}
+      ================================================================================
+
       ${specificGuideline}
 
       DIRETRIZES OBRIGATÓRIAS (HUMANIZAÇÃO E FORMATAÇÃO):
-      1. ALTA BURSTINESS E PERPLEXIDADE: Intercale frases curtas e diretas com períodos mais longos e complexos. Use vocabulário rico, orgânico e preciso do gênero escolhido.
-      2. ZERO CLICHÊS DE IA: É ESTRITAMENTE PROIBIDO usar transições artificiais como "Em suma", "Vale ressaltar", "É importante notar", "No cenário atual", "Podemos concluir", "Desde os primórdios", "Além disso". Faça conexões lógicas e diretas.
-      3. RITMO HUMANO: Simule o fluxo cognitivo humano, com argumentação progressiva, dados pertinentes e referências sólidas.
-      4. ORIGINALIDADE: Conteúdo 100% autoral e inédito.
-
-      ${coverInstruction}
-      Instruções adicionais detalhadas: ${prompt || `Siga rigorosamente a estrutura oficial de ${selectedType}.`}
+      1. DIRETRIZES DO USUÁRIO EM PRIMEIRO LUGAR: Cumpra cada detalhe, exigência, capítulo, tabela ou instrução solicitada pelo usuário acima.
+      2. TABELAS E ILUSTRAÇÕES: Se aplicável ou solicitado, insira tabelas no padrão IBGE (laterais abertas) e quadros com indicação de Fonte.
+      3. CITAÇÕES ABNT (NBR 10520:2023): Sistema autor-data em caixa mista. Ex: (Silva, 2023, p. 15).
+      4. ALTA BURSTINESS E PERPLEXIDADE: Intercale frases curtas e diretas com períodos mais longos e complexos.
+      5. ZERO CLICHÊS DE IA: É ESTRITAMENTE PROIBIDO usar transições artificiais como "Em suma", "Vale ressaltar", "No cenário atual", "Podemos concluir".
       
+      ${coverInstruction}
       ${context ? `Use o seguinte documento como base:\n${context.substring(0, 10000)}` : ""}`;
 
       // PASSO 1: Geração de Conteúdo por IA

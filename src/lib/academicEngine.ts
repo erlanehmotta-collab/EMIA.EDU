@@ -271,18 +271,23 @@ ${studentName ? `Resenhista: ${studentName}
 
   const systemPrompt = `Você é um assistente acadêmico e normalizador sênior especializado nas normas da ABNT e diretrizes das bibliotecas UNESP e USP.
 Elabore um(a) ${selectedTypeName} completo(a), profundo(a), rigoroso(a) e com alto nível acadêmico sobre o tema "${cleanTitle}" ${subtitle ? `com subtítulo "${subtitle}"` : ""}.
-${prompt ? `Diretrizes adicionais do usuário: ${prompt}` : ""}
+
+================================================================================
+🚨 INSTRUÇÕES MANDATÓRIAS E PRIORITÁRIAS DO USUÁRIO (OBEDIÊNCIA ESTRITA E TOTAL):
+${prompt ? `O usuário determinou expressamente as seguintes instruções que DEVEM ser integralmente cumpridas no conteúdo, estrutura e estilo:\n"${prompt}"` : "Desenvolva o tema com profundidade científica máxima e dados atualizados."}
+================================================================================
 
 ${genreInstructions}
 
-NORMAS OBRIGATÓRIAS:
-1. TABELAS E ELEMENTOS ILUSTRATIVOS (PADRÃO IBGE / ABNT):
-   - Na seção de Resultados e Discussão, inclua OBRIGATORIAMENTE uma Tabela formatada em padrão IBGE (com título no topo "Tabela 1 – Descrição", linhas horizontais no cabeçalho e rodapé, laterais abertas sem linhas verticais, e "Fonte: Os autores (2026)" ou similar no rodapé).
+NORMAS TÉCNICAS E ESTRUTURAIS:
+1. DIRETRIZES DO USUÁRIO EM PRIMEIRO LUGAR: Cumpra cada detalhe, exigência, capítulo, tabela, imagem ou tópico solicitado pelo usuário acima.
+2. TABELAS E ELEMENTOS ILUSTRATIVOS (PADRÃO IBGE / ABNT):
+   - Na seção de Resultados e Discussão (ou onde pertinente pelo tema), inclua OBRIGATORIAMENTE uma Tabela formatada em padrão IBGE (com título no topo "Tabela 1 – Descrição", linhas horizontais no cabeçalho e rodapé, laterais abertas sem linhas verticais, e "Fonte: Os autores (2026)" ou similar no rodapé).
    - Inclua também uma descrição conceitual ou representação esquemática ilustrativa ("Quadro 1 – Síntese das Variáveis Investigadas" com Fonte abaixo).
-2. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
-3. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
-4. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
-5. Formato limpo: Sem saudações ou comentários externos.`;
+3. CITAÇÕES (ABNT NBR 10520:2023): Utilize SEMPRE o sistema autor-data em caixa mista tanto no texto quanto entre parênteses. Ex: (Silva, 2023, p. 15).
+4. REFERÊNCIAS (ABNT NBR 6023): Todas completas, ordenadas alfabeticamente e alinhadas à margem esquerda.
+5. FLUIDEZ: Texto acadêmico formal e natural, sem clichês robóticos.
+6. Formato limpo: Sem saudações ou comentários externos.`;
 
   try {
     const generated = await callGeminiDirectly(systemPrompt, customGeminiKey, "gemini-3.6-flash");
