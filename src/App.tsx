@@ -99,8 +99,10 @@ export default function App() {
   const [imageHeight, setImageHeight] = useState<number>(320); // altura em pixels (auto/custom)
   const [imageAlign, setImageAlign] = useState<"center" | "left" | "right">("center");
   const [imageOffset, setImageOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [imageOrientation, setImageOrientation] = useState<"portrait" | "landscape">("landscape"); // Retrato ou Paisagem
+  const [imageRotation, setImageRotation] = useState<number>(0); // Rotação em graus (0, 90, 180, 270)
   const [imageStyle, setImageStyle] = useState<"none" | "simple_border" | "soft_shadow" | "rounded_frame" | "academic_box">("academic_box");
-  const [showImageToolbar, setShowImageToolbar] = useState<boolean>(true);
+  const [isImageSelected, setIsImageSelected] = useState<boolean>(false); // O menu só aparece quando a foto é selecionada (Padrão Word)
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -207,7 +209,28 @@ export default function App() {
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      setFiles(prev => [...prev, ...acceptedFiles]);
+      // Separa imagens para inserção instantânea direta no documento
+      const imageFiles = acceptedFiles.filter(f => f.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f.name));
+      const documentFiles = acceptedFiles.filter(f => !imageFiles.includes(f));
+
+      if (imageFiles.length > 0) {
+        imageFiles.forEach(imgFile => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            const figureBlock = `\n\n![Figura inserida](${base64})\nFigura 1 – Representação Ilustrativa do Objeto de Estudo\nFonte: Elaborado pelos autores (${new Date().getFullYear()}).\n\n`;
+            setGeneratedText(prev => prev ? prev + figureBlock : figureBlock);
+            setActiveTab("editor");
+            setErrorMessage("✅ Imagem inserida diretamente no documento ABNT!");
+            setTimeout(() => setErrorMessage(""), 3500);
+          };
+          reader.readAsDataURL(imgFile);
+        });
+      }
+
+      if (documentFiles.length > 0) {
+        setFiles(prev => [...prev, ...documentFiles]);
+      }
     }
   };
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
@@ -1212,47 +1235,62 @@ ${generatedText}`;
 
 
   const handleAttachmentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
     
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        const figureBlock = `\n\n![Figura inserida](${base64})\nFigura 1 – Representação Ilustrativa do Objeto de Estudo\nFonte: Elaborado pelos autores (${new Date().getFullYear()}).\n\n`;
-        setGeneratedText(prev => prev ? prev + figureBlock : figureBlock);
-        setActiveTab("editor");
-        setErrorMessage("✅ Imagem inserida com sucesso de acordo com as Normas ABNT (Título e Fonte)!");
-        setTimeout(() => setErrorMessage(""), 3500);
-      };
-      reader.readAsDataURL(file);
-    } else if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const content = event.target?.result as string;
-        setIsLoading(true);
-        try {
-          const res = await fetch("/api/csv-to-table", {
-            method: "POST",
-            headers: getApiHeaders(),
-            body: JSON.stringify({ csvData: content }),
-          });
-          const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-          if (data.success) {
-            setGeneratedText(prev => prev + "\n\n" + data.text + "\n\n");
-          } else {
-            setErrorMessage(data.error);
+    const filesArray = Array.from(fileList);
+    const imageFiles = filesArray.filter(f => f.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f.name));
+    const nonImageFiles = filesArray.filter(f => !imageFiles.includes(f));
+
+    // Processa múltiplas imagens ao mesmo tempo
+    if (imageFiles.length > 0) {
+      let loadedCount = 0;
+      imageFiles.forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          const figNum = idx + 1;
+          const figureBlock = `\n\n![Figura inserida](${base64})\nFigura ${figNum} – Representação Ilustrativa do Objeto de Estudo\nFonte: Elaborado pelos autores (${new Date().getFullYear()}).\n\n`;
+          setGeneratedText(prev => prev ? prev + figureBlock : figureBlock);
+          loadedCount++;
+          if (loadedCount === imageFiles.length) {
+            setActiveTab("editor");
+            setErrorMessage(`✅ ${imageFiles.length} ${imageFiles.length > 1 ? 'imagens inseridas' : 'imagem inserida'} com sucesso no padrão ABNT!`);
+            setTimeout(() => setErrorMessage(""), 3500);
           }
-        } catch (error) {
-          console.error(error);
-          setErrorMessage(error instanceof Error ? error.message : "Erro ao processar tabela.");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      reader.readAsText(file);
-    } else {
-       setErrorMessage("Formato não suportado. Envie imagens (JPG/PNG) ou tabelas (CSV).");
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Processa tabelas CSV ou TXT
+    for (const file of nonImageFiles) {
+      if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const content = event.target?.result as string;
+          setIsLoading(true);
+          try {
+            const res = await fetch("/api/csv-to-table", {
+              method: "POST",
+              headers: getApiHeaders(),
+              body: JSON.stringify({ csvData: content }),
+            });
+            const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
+            if (data.success) {
+              setGeneratedText(prev => prev + "\n\n" + data.text + "\n\n");
+            } else {
+              setErrorMessage(data.error);
+            }
+          } catch (error) {
+            console.error(error);
+            setErrorMessage(error instanceof Error ? error.message : "Erro ao processar tabela.");
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        reader.readAsText(file);
+      }
     }
     
     if (attachmentRef.current) attachmentRef.current.value = "";
@@ -2851,87 +2889,152 @@ ${latexChapters}
                                     const imgMatch = part.match(/!\[Figura inserida\]\((.*?)\)/);
                                     if (imgMatch) {
                                       return (
-                                        <div key={pPartIdx} className={`my-6 flex flex-col ${imageAlign === "center" ? "items-center" : imageAlign === "left" ? "items-start" : "items-end"} justify-center relative select-none group`}>
-                                          {/* Barra de Ferramentas de Formatação de Imagem (Estilo Ribbon do Microsoft Word) */}
-                                          <div className="flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur px-3.5 py-1.5 rounded-lg border border-gray-200 shadow-md mb-2 opacity-90 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Alinhamento:</span>
-                                            <div className="flex items-center bg-gray-100 rounded p-0.5">
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageAlign("left")}
-                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "left" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
-                                                title="Alinhar à Esquerda"
-                                              >
-                                                Esquerda
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageAlign("center")}
-                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "center" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
-                                                title="Centralizar (Padrão ABNT)"
-                                              >
-                                                Centro
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageAlign("right")}
-                                                className={`px-2 py-0.5 text-xs rounded font-medium ${imageAlign === "right" ? "bg-white shadow-xs text-blue-600 font-bold" : "text-gray-600"}`}
-                                                title="Alinhar à Direita"
-                                              >
-                                                Direita
-                                              </button>
-                                            </div>
-
-                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
-
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Estilos de Imagem:</span>
-                                            <div className="flex items-center gap-1">
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageStyle("academic_box")}
-                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "academic_box" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                              >
-                                                ABNT Padrão
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageStyle("simple_border")}
-                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "simple_border" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                              >
-                                                Borda Simples
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageStyle("soft_shadow")}
-                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "soft_shadow" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                              >
-                                                Sombra Suave
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => setImageStyle("rounded_frame")}
-                                                className={`px-2 py-0.5 text-xs rounded ${imageStyle === "rounded_frame" ? "bg-blue-600 text-white font-semibold" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                                              >
-                                                Cantos Arredondados
-                                              </button>
-                                            </div>
-
-                                            <span className="h-3.5 w-px bg-gray-300 mx-1" />
-
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setImageWidth(80);
-                                                setImageHeight(320);
-                                                setImageAlign("center");
-                                                setImageStyle("academic_box");
-                                              }}
-                                              className="px-2 py-0.5 text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded"
-                                              title="Redefinir Imagem"
+                                        <div 
+                                          key={pPartIdx} 
+                                          onClick={() => setIsImageSelected(true)}
+                                          className={`my-6 flex flex-col ${imageAlign === "center" ? "items-center" : imageAlign === "left" ? "items-start" : "items-end"} justify-center relative select-none`}
+                                        >
+                                          {/* Barra de Ferramentas de Formatação de Imagem (Design Delicado e Elegante) */}
+                                          {isImageSelected && (
+                                            <div 
+                                              onClick={(e) => e.stopPropagation()} 
+                                              className="flex flex-wrap items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-200/50 mb-2.5 z-30 transition-all text-xs select-none"
                                             >
-                                              Redefinir
-                                            </button>
-                                          </div>
+                                              {/* Identificação Elegante */}
+                                              <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200">
+                                                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                                                <span className="text-[11px] font-semibold text-slate-700 tracking-tight">Formatar Imagem</span>
+                                              </div>
+
+                                              {/* Alinhamento */}
+                                              <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageAlign("left")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageAlign === "left" ? "bg-white text-blue-600 font-bold shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+                                                  title="Alinhar à Esquerda"
+                                                >
+                                                  Esquerda
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageAlign("center")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageAlign === "center" ? "bg-white text-blue-600 font-bold shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+                                                  title="Centralizar (Padrão ABNT)"
+                                                >
+                                                  Centro
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageAlign("right")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageAlign === "right" ? "bg-white text-blue-600 font-bold shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+                                                  title="Alinhar à Direita"
+                                                >
+                                                  Direita
+                                                </button>
+                                              </div>
+
+                                              {/* Orientação */}
+                                              <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setImageOrientation("portrait");
+                                                    setImageWidth(55);
+                                                    setImageHeight(420);
+                                                  }}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageOrientation === "portrait" ? "bg-white text-blue-600 font-bold shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+                                                  title="Orientação Retrato (Vertical)"
+                                                >
+                                                  Retrato
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setImageOrientation("landscape");
+                                                    setImageWidth(85);
+                                                    setImageHeight(320);
+                                                  }}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageOrientation === "landscape" ? "bg-white text-blue-600 font-bold shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
+                                                  title="Orientação Paisagem (Horizontal)"
+                                                >
+                                                  Paisagem
+                                                </button>
+                                              </div>
+
+                                              {/* Girar */}
+                                              <button
+                                                type="button"
+                                                onClick={() => setImageRotation(r => (r + 90) % 360)}
+                                                className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-all flex items-center gap-1 active:scale-95"
+                                                title="Girar 90 graus no sentido horário"
+                                              >
+                                                <span>Girar</span>
+                                                <span className="text-[10px] text-blue-600 font-bold font-mono">{imageRotation}°</span>
+                                              </button>
+
+                                              {/* Estilos */}
+                                              <div className="flex items-center gap-0.5 pl-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageStyle("academic_box")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageStyle === "academic_box" ? "bg-blue-600 text-white font-semibold shadow-2xs" : "text-slate-600 hover:bg-slate-100"}`}
+                                                >
+                                                  ABNT
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageStyle("simple_border")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageStyle === "simple_border" ? "bg-blue-600 text-white font-semibold shadow-2xs" : "text-slate-600 hover:bg-slate-100"}`}
+                                                >
+                                                  Borda
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageStyle("soft_shadow")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageStyle === "soft_shadow" ? "bg-blue-600 text-white font-semibold shadow-2xs" : "text-slate-600 hover:bg-slate-100"}`}
+                                                >
+                                                  Sombra
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setImageStyle("rounded_frame")}
+                                                  className={`px-2 py-0.5 text-[11px] rounded-lg transition-all ${imageStyle === "rounded_frame" ? "bg-blue-600 text-white font-semibold shadow-2xs" : "text-slate-600 hover:bg-slate-100"}`}
+                                                >
+                                                  Curva
+                                                </button>
+                                              </div>
+
+                                              {/* Separador e Ações Finais */}
+                                              <span className="h-3 w-px bg-slate-200 mx-0.5" />
+
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setImageWidth(80);
+                                                  setImageHeight(320);
+                                                  setImageAlign("center");
+                                                  setImageOrientation("landscape");
+                                                  setImageRotation(0);
+                                                  setImageOffset({ x: 0, y: 0 });
+                                                  setImageStyle("academic_box");
+                                                }}
+                                                className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
+                                                title="Redefinir formatação original"
+                                              >
+                                                Redefinir
+                                              </button>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => setIsImageSelected(false)}
+                                                className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all text-xs"
+                                                title="Fechar barra"
+                                              >
+                                                ✕
+                                              </button>
+                                            </div>
+                                          )}
 
                                           {/* Container da Imagem com Reposicionamento Livre (Drag to Move) e 8 Alças Word */}
                                           <div 
@@ -2939,41 +3042,46 @@ ${latexChapters}
                                               width: `${imageWidth}%`,
                                               transform: `translate(${imageOffset.x}px, ${imageOffset.y}px)`
                                             }}
-                                            className="relative group/box p-1 border border-transparent hover:border-blue-500 hover:border-dashed rounded transition-all flex flex-col items-center select-none"
+                                            className={`relative group/box p-1 rounded transition-all flex flex-col items-center select-none ${
+                                              isImageSelected ? "ring-2 ring-blue-500 ring-offset-2 border border-blue-400 border-dashed" : "border border-transparent hover:border-gray-300 hover:border-dashed"
+                                            }`}
                                           >
                                             {/* Alça Central Superior para Arrastar e Reposicionar a Imagem Livremente */}
-                                            <div
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startY = e.clientY;
-                                                const initialOffset = { ...imageOffset };
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dX = ev.clientX - startX;
-                                                  const dY = ev.clientY - startY;
-                                                  setImageOffset({
-                                                    x: initialOffset.x + dX,
-                                                    y: initialOffset.y + dY
-                                                  });
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Clique e arraste para reposicionar a imagem onde quiser (Padrão Word)"
-                                              className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white p-1 rounded-full shadow-md cursor-grab active:cursor-grabbing opacity-0 group-hover/box:opacity-100 transition-opacity z-10 flex items-center justify-center"
-                                            >
-                                              <Move className="w-3.5 h-3.5" />
-                                            </div>
+                                            {isImageSelected && (
+                                              <div
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  const startX = e.clientX;
+                                                  const startY = e.clientY;
+                                                  const initialOffset = { ...imageOffset };
+                                                  const onMouseMove = (ev: MouseEvent) => {
+                                                    const dX = ev.clientX - startX;
+                                                    const dY = ev.clientY - startY;
+                                                    setImageOffset({
+                                                      x: initialOffset.x + dX,
+                                                      y: initialOffset.y + dY
+                                                    });
+                                                  };
+                                                  const onMouseUp = () => {
+                                                    window.removeEventListener("mousemove", onMouseMove);
+                                                    window.removeEventListener("mouseup", onMouseUp);
+                                                  };
+                                                  window.addEventListener("mousemove", onMouseMove);
+                                                  window.addEventListener("mouseup", onMouseUp);
+                                                }}
+                                                title="Clique e arraste para reposicionar a imagem onde quiser (Padrão Word)"
+                                                className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white p-1 rounded-full shadow-md cursor-grab active:cursor-grabbing z-10 flex items-center justify-center"
+                                              >
+                                                <Move className="w-3.5 h-3.5" />
+                                              </div>
+                                            )}
 
                                             <div 
                                               style={{ height: imageHeight > 0 ? `${imageHeight}px` : "auto" }}
                                               onMouseDown={(e) => {
                                                 if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'IMG') {
                                                   e.preventDefault();
+                                                  setIsImageSelected(true);
                                                   const startX = e.clientX;
                                                   const startY = e.clientY;
                                                   const initialOffset = { ...imageOffset };
@@ -2993,7 +3101,7 @@ ${latexChapters}
                                                   window.addEventListener("mouseup", onMouseUp);
                                                 }
                                               }}
-                                              className={`w-full overflow-hidden flex items-center justify-center transition-all cursor-grab active:cursor-grabbing ${
+                                              className={`w-full overflow-hidden flex items-center justify-center transition-all cursor-pointer ${
                                                 imageStyle === "academic_box" 
                                                   ? "p-2 bg-white border border-gray-300 shadow-2xs"
                                                   : imageStyle === "simple_border"
@@ -3008,129 +3116,137 @@ ${latexChapters}
                                               <img 
                                                 src={imgMatch[1]} 
                                                 alt="Figura acadêmica" 
-                                                style={{ height: imageHeight > 0 ? `${imageHeight}px` : "auto" }}
-                                                className="w-full object-contain select-none pointer-events-none" 
+                                                style={{ 
+                                                  height: imageHeight > 0 ? `${imageHeight}px` : "auto",
+                                                  transform: `rotate(${imageRotation}deg)`
+                                                }}
+                                                className="w-full object-contain select-none pointer-events-none transition-transform duration-200" 
                                                 draggable={false}
                                               />
                                             </div>
 
-                                            {/* 1. Alça Direita (Ajustar Largura) */}
-                                            <div 
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startW = imageWidth;
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dX = ev.clientX - startX;
-                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Arrastar largura"
-                                              className="absolute top-1/2 -right-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
-                                            />
+                                            {/* 8 Alças de Arraste (Visíveis APENAS quando a imagem está selecionada) */}
+                                            {isImageSelected && (
+                                              <>
+                                                {/* 1. Alça Direita (Ajustar Largura) */}
+                                                <div 
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const startX = e.clientX;
+                                                    const startW = imageWidth;
+                                                    const onMouseMove = (ev: MouseEvent) => {
+                                                      const dX = ev.clientX - startX;
+                                                      setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                    };
+                                                    const onMouseUp = () => {
+                                                      window.removeEventListener("mousemove", onMouseMove);
+                                                      window.removeEventListener("mouseup", onMouseUp);
+                                                    };
+                                                    window.addEventListener("mousemove", onMouseMove);
+                                                    window.addEventListener("mouseup", onMouseUp);
+                                                  }}
+                                                  title="Arrastar largura"
+                                                  className="absolute top-1/2 -right-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize hover:scale-125 transition-all"
+                                                />
 
-                                            {/* 2. Alça Esquerda (Ajustar Largura) */}
-                                            <div 
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startW = imageWidth;
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dX = startX - ev.clientX;
-                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Arrastar largura"
-                                              className="absolute top-1/2 -left-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
-                                            />
+                                                {/* 2. Alça Esquerda (Ajustar Largura) */}
+                                                <div 
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const startX = e.clientX;
+                                                    const startW = imageWidth;
+                                                    const onMouseMove = (ev: MouseEvent) => {
+                                                      const dX = startX - ev.clientX;
+                                                      setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                    };
+                                                    const onMouseUp = () => {
+                                                      window.removeEventListener("mousemove", onMouseMove);
+                                                      window.removeEventListener("mouseup", onMouseUp);
+                                                    };
+                                                    window.addEventListener("mousemove", onMouseMove);
+                                                    window.addEventListener("mouseup", onMouseUp);
+                                                  }}
+                                                  title="Arrastar largura"
+                                                  className="absolute top-1/2 -left-2 -translate-y-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ew-resize hover:scale-125 transition-all"
+                                                />
 
-                                            {/* 3. Alça Inferior (Ajustar Altura) */}
-                                            <div 
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startY = e.clientY;
-                                                const startH = imageHeight;
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dY = ev.clientY - startY;
-                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Arrastar altura"
-                                              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ns-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
-                                            />
+                                                {/* 3. Alça Inferior (Ajustar Altura) */}
+                                                <div 
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const startY = e.clientY;
+                                                    const startH = imageHeight;
+                                                    const onMouseMove = (ev: MouseEvent) => {
+                                                      const dY = ev.clientY - startY;
+                                                      setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
+                                                    };
+                                                    const onMouseUp = () => {
+                                                      window.removeEventListener("mousemove", onMouseMove);
+                                                      window.removeEventListener("mouseup", onMouseUp);
+                                                    };
+                                                    window.addEventListener("mousemove", onMouseMove);
+                                                    window.addEventListener("mouseup", onMouseUp);
+                                                  }}
+                                                  title="Arrastar altura"
+                                                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-xs shadow cursor-ns-resize hover:scale-125 transition-all"
+                                                />
 
-                                            {/* 4. Alça Canto Inferior Direito (Ajustar Altura e Largura Simultâneos) */}
-                                            <div 
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startY = e.clientY;
-                                                const startW = imageWidth;
-                                                const startH = imageHeight;
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dX = ev.clientX - startX;
-                                                  const dY = ev.clientY - startY;
-                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
-                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Puxar e arrastar altura e largura (Padrão Word)"
-                                              className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-se-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
-                                            />
+                                                {/* 4. Alça Canto Inferior Direito (Ajustar Altura e Largura Simultâneos) */}
+                                                <div 
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const startX = e.clientX;
+                                                    const startY = e.clientY;
+                                                    const startW = imageWidth;
+                                                    const startH = imageHeight;
+                                                    const onMouseMove = (ev: MouseEvent) => {
+                                                      const dX = ev.clientX - startX;
+                                                      const dY = ev.clientY - startY;
+                                                      setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                      setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
+                                                    };
+                                                    const onMouseUp = () => {
+                                                      window.removeEventListener("mousemove", onMouseMove);
+                                                      window.removeEventListener("mouseup", onMouseUp);
+                                                    };
+                                                    window.addEventListener("mousemove", onMouseMove);
+                                                    window.addEventListener("mouseup", onMouseUp);
+                                                  }}
+                                                  title="Puxar e arrastar altura e largura (Padrão Word)"
+                                                  className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-se-resize hover:scale-125 transition-all"
+                                                />
 
-                                            {/* 5. Alça Canto Inferior Esquerdo */}
-                                            <div 
-                                              onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                const startX = e.clientX;
-                                                const startY = e.clientY;
-                                                const startW = imageWidth;
-                                                const startH = imageHeight;
-                                                const onMouseMove = (ev: MouseEvent) => {
-                                                  const dX = startX - ev.clientX;
-                                                  const dY = ev.clientY - startY;
-                                                  setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
-                                                  setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
-                                                };
-                                                const onMouseUp = () => {
-                                                  window.removeEventListener("mousemove", onMouseMove);
-                                                  window.removeEventListener("mouseup", onMouseUp);
-                                                };
-                                                window.addEventListener("mousemove", onMouseMove);
-                                                window.addEventListener("mouseup", onMouseUp);
-                                              }}
-                                              title="Puxar e arrastar altura e largura (Padrão Word)"
-                                              className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-sw-resize opacity-0 group-hover/box:opacity-100 hover:scale-125 transition-all"
-                                            />
+                                                {/* 5. Alça Canto Inferior Esquerdo */}
+                                                <div 
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const startX = e.clientX;
+                                                    const startY = e.clientY;
+                                                    const startW = imageWidth;
+                                                    const startH = imageHeight;
+                                                    const onMouseMove = (ev: MouseEvent) => {
+                                                      const dX = startX - ev.clientX;
+                                                      const dY = ev.clientY - startY;
+                                                      setImageWidth(Math.min(100, Math.max(25, Math.round(startW + (dX / 4)))));
+                                                      setImageHeight(Math.min(700, Math.max(100, Math.round(startH + dY))));
+                                                    };
+                                                    const onMouseUp = () => {
+                                                      window.removeEventListener("mousemove", onMouseMove);
+                                                      window.removeEventListener("mouseup", onMouseUp);
+                                                    };
+                                                    window.addEventListener("mousemove", onMouseMove);
+                                                    window.addEventListener("mouseup", onMouseUp);
+                                                  }}
+                                                  title="Puxar e arrastar altura e largura (Padrão Word)"
+                                                  className="absolute -bottom-2 -left-2 w-4 h-4 bg-blue-600 border-2 border-white rounded-sm shadow-md cursor-sw-resize hover:scale-125 transition-all"
+                                                />
 
-                                            {/* Badge Discreta com Dimensões Exatas */}
-                                            <div className="absolute -top-7 right-0 opacity-0 group-hover/box:opacity-100 transition-opacity bg-gray-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                                              {imageWidth}% L × {imageHeight}px A
-                                            </div>
+                                                {/* Badge Discreta com Dimensões Exatas */}
+                                                <div className="absolute -top-7 right-0 bg-gray-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                                                  {imageWidth}% L × {imageHeight}px A
+                                                </div>
+                                              </>
+                                            )}
                                           </div>
                                         </div>
                                       );
