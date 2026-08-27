@@ -821,40 +821,47 @@ export default function App() {
     }
   };
 
-  const handleGenerateCover = async () => {
+  const handleInsertCover = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/generate-cover", {
-        method: "POST",
-        headers: getApiHeaders(),
-        body: JSON.stringify({ 
-          text: generatedText, 
-          title: title || "TRABALHO ACADÊMICO",
-          subtitle,
-          studentName,
-          institution,
-          course,
-          city,
-          year,
-          advisor,
-          documentType: documentType === "outros" ? customDocumentType : documentType
-        }),
-      });
-      const textData = await res.text(); 
-      let data; 
-      try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}).`); }
-      if (data.success) {
-        // Se o documento já tem capa anterior, substitui, caso contrário adiciona no início
-        const cleanBody = generatedText.replace(/^.*--- \[(?:QUEBRA DE PÁGINA|NOVA PÁGINA)\] ---\n*/is, '');
-        setGeneratedText(data.text + "\n\n" + (cleanBody || generatedText));
-        setActiveTab("editor");
-        logAction("Capa e Folha de Rosto ABNT (Folha A4) geradas com sucesso");
-      } else {
-        setErrorMessage(data.error);
+      const inst = institution ? institution.toUpperCase() : "INSTITUIÇÃO DE ENSINO SUPERIOR";
+      const crs = course ? course.toUpperCase() : "CURSO DE GRADUAÇÃO";
+      const aut = studentName ? studentName.toUpperCase() : "NOME DO(A) AUTOR(A)";
+      const tit = (title || "TÍTULO DO TRABALHO").toUpperCase();
+      const sub = subtitle ? `: ${subtitle}` : "";
+      const cid = city ? city.toUpperCase() : "CIDADE - UF";
+      const an = year || String(new Date().getFullYear());
+      const adv = advisor || "Prof. Dr. Orientador";
+
+      const presentationNote = documentType.includes("artigo")
+        ? `Artigo científico/acadêmico apresentado ao(à) ${inst}, como requisito de avaliação acadêmica.`
+        : `Trabalho de Conclusão de Curso apresentado ao(à) ${inst}, como requisito parcial para obtenção de grau.`;
+
+      // 1. CAPA OFICIAL (NBR 14724)
+      const coverPage = `${inst}\n${crs}\n\n\n\n${aut}\n\n\n\n${tit}${sub}\n\n\n\n\n\n\n\n${cid}\n${an}`;
+
+      // 2. FOLHA DE ROSTO / CONTRACAPA OFICIAL (NBR 14724)
+      const titlePage = `${aut}\n\n\n\n${tit}${sub}\n\n\n${presentationNote}\nOrientador(a): ${adv}\n\n\n\n\n\n${cid}\n${an}`;
+
+      const coverBlock = `${coverPage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n${titlePage}\n\n--- [QUEBRA DE PÁGINA] ---\n\n`;
+
+      // Remove capas anteriores se já existirem
+      let cleanBody = generatedText || "";
+      if (cleanBody.includes("--- [QUEBRA DE PÁGINA] ---")) {
+        const parts = cleanBody.split("--- [QUEBRA DE PÁGINA] ---");
+        if (parts.length >= 3) {
+          cleanBody = parts.slice(2).join("--- [QUEBRA DE PÁGINA] ---").trim();
+        }
       }
+
+      const updatedFullText = coverBlock + (cleanBody.trim() ? cleanBody.trim() : "1 INTRODUÇÃO\n\nInsira ou continue seu trabalho acadêmico aqui...");
+      setGeneratedText(updatedFullText);
+      setActiveTab("editor");
+      setErrorMessage("✅ Capa e Contracapa (Folha de Rosto) oficiais inseridas com sucesso!");
+      setTimeout(() => setErrorMessage(""), 3500);
     } catch (error) {
       console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao gerar capa.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao inserir capa e contracapa.");
     } finally {
       setIsLoading(false);
     }
@@ -2406,9 +2413,9 @@ ${latexChapters}
 
                 <div className="absolute bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.06)] z-20 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-0.5">
-                    <Button size="sm" onClick={handleGenerateCover} disabled={isLoading} variant="outline" className="flex-shrink-0 font-medium">
+                    <Button size="sm" onClick={handleInsertCover} disabled={isLoading} variant="outline" className="flex-shrink-0 font-medium text-blue-700 border-blue-200 hover:bg-blue-50">
                       {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" /> : <BookOpen className="w-4 h-4 mr-2 text-blue-600" />}
-                      📄 Atualizar Capa ABNT
+                      📄 Inserir Capa
                     </Button>
                     <Button size="sm" onClick={handleGenerateTOC} disabled={isLoading || !generatedText} variant="outline" className="flex-shrink-0 font-medium">
                       <ListOrdered className="w-4 h-4 mr-2 text-indigo-600" />
