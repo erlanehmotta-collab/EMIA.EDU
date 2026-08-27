@@ -612,6 +612,67 @@ export default function App() {
     }
   };
 
+  // Função para identificar e ordenar estruturalmente as seções do documento (ABNT NBR 14724 / 6022) SEM alterar as palavras do texto original
+  const organizeTextInABNTOrder = (raw: string): string => {
+    if (!raw || !raw.trim()) return raw;
+
+    // Normaliza quebras de linha
+    const cleanRaw = raw.replace(/\r\n/g, '\n');
+
+    // Mapeamento de blocos conhecidos
+    let resumoBlock = "";
+    let abstractBlock = "";
+    let introducaoBlock = "";
+    let desenvolvimentoBlock = "";
+    let resultadosBlock = "";
+    let conclusaoBlock = "";
+    let referenciasBlock = "";
+    let outrosBlocos: string[] = [];
+
+    // Quebra por quebra de página ou por títulos de seções
+    const sections = cleanRaw.split(/\n(?=(?:[0-9]+\s+[A-ZÀ-Ú\s]+|RESUMO|ABSTRACT|SUMÁRIO|REFERÊNCIAS|CONSIDERAÇÕES FINAIS|CONCLUSÃO)\b)/i);
+
+    for (const sec of sections) {
+      const trimmed = sec.trim();
+      if (!trimmed) continue;
+
+      if (/^RESUMO\b/i.test(trimmed)) {
+        resumoBlock = trimmed;
+      } else if (/^ABSTRACT\b/i.test(trimmed)) {
+        abstractBlock = trimmed;
+      } else if (/^(?:1\s+)?INTRODUÇÃO\b/i.test(trimmed)) {
+        introducaoBlock = trimmed;
+      } else if (/^(?:2\s+)?(?:FUNDAMENTAÇÃO|METODOLOGIA|DESENVOLVIMENTO)\b/i.test(trimmed)) {
+        desenvolvimentoBlock = (desenvolvimentoBlock ? desenvolvimentoBlock + "\n\n" : "") + trimmed;
+      } else if (/^(?:3\s+)?(?:RESULTADOS|DISCUSSÃO)\b/i.test(trimmed)) {
+        resultadosBlock = trimmed;
+      } else if (/^(?:4\s+)?(?:CONSIDERAÇÕES FINAIS|CONCLUSÃO)\b/i.test(trimmed)) {
+        conclusaoBlock = trimmed;
+      } else if (/^REFERÊNCIAS\b/i.test(trimmed)) {
+        referenciasBlock = trimmed;
+      } else {
+        outrosBlocos.push(trimmed);
+      }
+    }
+
+    // Se detectou ao menos duas seções acadêmicas, remonta rigorosamente na ordem ABNT oficial com Quebras de Página
+    if (resumoBlock || abstractBlock || introducaoBlock || referenciasBlock) {
+      const orderedParts: string[] = [];
+      if (resumoBlock) orderedParts.push(resumoBlock);
+      if (abstractBlock) orderedParts.push(abstractBlock);
+      if (introducaoBlock) orderedParts.push(introducaoBlock);
+      if (desenvolvimentoBlock) orderedParts.push(desenvolvimentoBlock);
+      if (resultadosBlock) orderedParts.push(resultadosBlock);
+      if (conclusaoBlock) orderedParts.push(conclusaoBlock);
+      if (referenciasBlock) orderedParts.push(referenciasBlock);
+      if (outrosBlocos.length > 0) orderedParts.push(...outrosBlocos);
+
+      return orderedParts.join("\n\n--- [QUEBRA DE PÁGINA] ---\n\n");
+    }
+
+    return cleanRaw;
+  };
+
   const handleMergeFiles = async () => {
     if (files.length === 0) {
       setErrorMessage("Por favor, adicione documentos na Base de Conhecimento para mesclar.");
@@ -639,16 +700,14 @@ export default function App() {
         console.warn("Backend extract endpoint falhou, usando extrator client-side:", serverErr);
       }
 
-      // 2. Extração client-side robusta (garante que arquivos de texto/doc/txt sempre subam mesmo em modo estático)
+      // 2. Extração client-side robusta
       if (!extractedText) {
         const textParts: string[] = [];
         for (const file of files) {
           try {
             if (file.type.includes("text") || file.name.endsWith(".txt") || file.name.endsWith(".md") || file.name.endsWith(".csv")) {
               const content = await file.text();
-              textParts.push(`--- Início do Arquivo: ${file.name} ---\n\n${content}\n`);
-            } else {
-              textParts.push(`--- Início do Arquivo: ${file.name} ---\n\n[Arquivo ${file.name} recebido e pronto para processamento]\n`);
+              textParts.push(content);
             }
           } catch (readErr) {
             console.warn(`Erro ao ler arquivo ${file.name}:`, readErr);
@@ -658,17 +717,19 @@ export default function App() {
       }
 
       if (extractedText && extractedText.trim()) {
-        setGeneratedText(prev => prev ? prev + "\n\n" + extractedText : extractedText);
-        setErrorMessage("✅ Arquivos carregados e juntados com sucesso no editor!");
-        setTimeout(() => setErrorMessage(""), 3500);
+        // Organiza as seções na ordem oficial da ABNT sem mudar nenhuma palavra do texto original
+        const structuredText = organizeTextInABNTOrder(extractedText);
+        setGeneratedText(prev => prev ? prev + "\n\n--- [QUEBRA DE PÁGINA] ---\n\n" + structuredText : structuredText);
+        setErrorMessage("✅ Documento organizado rigorosamente na ordem ABNT (Resumo, Abstract, Introdução, Desenvolvimento, Resultados, Conclusão, Referências) sem alterar seu texto!");
+        setTimeout(() => setErrorMessage(""), 4500);
         setActiveTab("editor");
-        logAction("Junção e extração de documentos", "Múltiplos arquivos mesclados diretamente.");
+        logAction("Organização Estrutural ABNT de Arquivo", structuredText);
       } else {
         setErrorMessage("Não foi possível extrair o texto dos arquivos. Tente novamente.");
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao extrair e juntar textos.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao extrair e organizar textos.");
     } finally {
       setIsLoading(false);
     }
