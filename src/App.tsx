@@ -1923,10 +1923,7 @@ ${latexChapters}
                   className="w-full bg-gray-50 border-gray-300 hover:bg-gray-100 flex items-center justify-between"
                 >
                   <span className="text-sm font-medium text-gray-700">
-                    {["resumo", "redacao"].includes(documentType) && "Dados do Aluno / Metadados"}
-                    {["artigo", "artigo_cientifico"].includes(documentType) && "Autoria & Afiliação (Cabeçalho NBR 6022)"}
-                    {["monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType) && "Capa & Folha de Rosto (ABNT NBR 14724)"}
-                    {!["resumo", "redacao", "artigo", "artigo_cientifico", "monografia", "trabalho_academico", "relatorio", "projeto"].includes(documentType) && "Dados do Trabalho"}
+                    Dados do aluno
                   </span>
                   <span className="text-gray-500 text-xs">{showWorkData ? "Ocultar" : "Preencher"}</span>
                 </Button>
