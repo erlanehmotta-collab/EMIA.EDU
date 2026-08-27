@@ -13,7 +13,7 @@ import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip, Header, PageNumber } from "docx";
 import { saveAs } from "file-saver";
 import { useDropzone } from "react-dropzone";
-import { generateAcademicText, normalizeCitationsToABNT2023 } from "./lib/academicEngine";
+import { generateAcademicText, normalizeCitationsToABNT2023, callGeminiDirectly } from "./lib/academicEngine";
 
 type UserProfile = {
   name: string;
@@ -1061,24 +1061,51 @@ export default function App() {
     logAction("Envio de instrução/mensagem no Chat de Edição");
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: getApiHeaders(),
-        body: JSON.stringify({ 
-          message: userMessage, 
-          history: chatHistory,
-          context: generatedText // Send current document as context
-        }),
-      });
-      const textData = await res.text(); let data; try { data = JSON.parse(textData); } catch (e) { throw new Error(`Erro no servidor (${res.status}). Aguarde e tente novamente.`); }
-      if (data.success) {
-        setChatHistory([...updatedHistory, { role: 'assistant', text: data.text }]);
+      let assistantResponse = "";
+
+      // 1. Tenta via endpoint do servidor
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: getApiHeaders(),
+          body: JSON.stringify({ 
+            message: userMessage, 
+            history: chatHistory,
+            context: generatedText
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.text) {
+            assistantResponse = data.text;
+          }
+        }
+      } catch (serverErr) {
+        console.warn("Falha no endpoint /api/chat, tentando chamada direta ao Gemini:", serverErr);
+      }
+
+      // 2. Se o servidor não respondeu, chama diretamente o Gemini com fallback
+      if (!assistantResponse) {
+        const chatPrompt = `Você é o tutor acadêmico especialista e assistente inteligente do EMIA.EDUTECH.
+Responda com rigor científico, clareza didática e foco nas normas da ABNT.
+
+${generatedText ? `[DOCUMENTO ATUAL DO USUÁRIO]\n${generatedText.substring(0, 7000)}\n[/DOCUMENTO ATUAL]\n` : ""}
+[HISTÓRICO DA CONVERSA]
+${chatHistory.map(h => `${h.role === 'user' ? 'Aluno' : 'Assistente'}: ${h.text}`).join('\n')}
+Aluno: ${userMessage}
+Assistente:`;
+
+        assistantResponse = await callGeminiDirectly(chatPrompt, customGeminiKey);
+      }
+
+      if (assistantResponse) {
+        setChatHistory([...updatedHistory, { role: 'assistant', text: assistantResponse }]);
       } else {
-        setErrorMessage("Erro ao gerar resposta automática: " + data.error);
+        setErrorMessage("Erro ao gerar resposta do chat. Tente novamente.");
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao enviar mensagem.");
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao enviar mensagem no chat.");
     } finally {
       setIsChatting(false);
     }
@@ -2009,12 +2036,6 @@ ${latexChapters}
               >
                 Chat Acadêmico
               </button>
-              <button 
-                onClick={() => setActiveTab("report")}
-                className={`pb-1 text-sm font-medium border-b-2 transition-colors ${activeTab === "report" ? "border-blue-600 text-blue-600 font-semibold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-              >
-                Relatório de Autenticidade
-              </button>
             </div>
 
             {/* Ações Rápidas de Exportação e Validação no Topo */}
@@ -2028,16 +2049,6 @@ ${latexChapters}
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />}
                 ✍️ Ortografia
-              </Button>
-              <Button 
-                onClick={handleCheckAuthenticity} 
-                disabled={isLoading || !generatedText} 
-                variant="outline" 
-                size="sm"
-                className="text-xs font-semibold text-purple-700 border-purple-200 hover:bg-purple-50 h-8"
-              >
-                {isLoading && activeTab === 'report' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-purple-600" />}
-                Checar Plágio/IA
               </Button>
               <Button onClick={handleCopy} disabled={!generatedText} variant="outline" size="sm" className="text-xs h-8 text-gray-700">
                 <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
@@ -2061,10 +2072,10 @@ ${latexChapters}
                 <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
               </Button>
               <Button onClick={exportWord} disabled={!generatedText} size="sm" className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
-                <FileDown className="w-3.5 h-3.5 mr-1" /> Word (.docx A4)
+                <FileDown className="w-3.5 h-3.5 mr-1" /> Word
               </Button>
               <Button onClick={exportLaTeX} disabled={!generatedText} size="sm" className="text-xs h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">
-                <FileCode className="w-3.5 h-3.5 mr-1" /> LaTeX (abnTeX2)
+                <FileCode className="w-3.5 h-3.5 mr-1" /> LaTeX
               </Button>
 
               {/* CONTROLE DE ZOOM INTEGRADO NA BARRA SUPERIOR */}
@@ -2388,15 +2399,6 @@ ${latexChapters}
 
                 <div className="absolute bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.06)] z-20 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide pb-0.5">
-                    <Button 
-                      size="sm" 
-                      onClick={handleHumanize} 
-                      disabled={isLoading || !generatedText} 
-                      className="flex-shrink-0 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold shadow-sm"
-                    >
-                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" /> : <UserCheck className="w-4 h-4 mr-2 text-white" />}
-                      ✨ Humanizar Texto (Anti-IA)
-                    </Button>
                     <Button size="sm" onClick={handleGenerateCover} disabled={isLoading} variant="outline" className="flex-shrink-0 font-medium">
                       {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" /> : <BookOpen className="w-4 h-4 mr-2 text-blue-600" />}
                       📄 Atualizar Capa ABNT
